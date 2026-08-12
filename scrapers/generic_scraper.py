@@ -83,34 +83,53 @@ class GenericScraper(BaseScraper):
     def get_source_name(self) -> str:
         return self.source_name
 
-    def scrape(self, **kwargs) -> List[DataItem]:
-        """两步抓取：列表页提取标题+链接 → 详情页提取正文+日期。
+    def _ensure_selectors(self, url: str) -> str:
+        """选择器兜底链：self.selectors → detect_selectors(url) → get_selectors(url)
 
-        Returns:
-            NewsArticle 列表（含完整正文）
+        当 self.selectors 缺少 article_selector 时，自动调用 detector；
+        detector 失败再回退到 preset。返回最终生效的来源标记：
+        "manual" / "detector" / "preset" / "fallback"
         """
-        url = kwargs.get("url") or self.target_url
-        limit = kwargs.get("limit", 20)
+        if self.selectors.get("article_selector"):
+            return "manual"
 
-        if not url:
-            self.logger.error("No URL configured")
-            return []
+        from scrapers.selector_detector import detect_selectors
+        from scrapers.selector_presets import get_selectors
 
-        self.logger.info(f"Scraping list: {url}")
+        # 尝试自动检测
+        try:
+            detected = detect_selectors(url)
+        except Exception as e:
+            self.logger.warning(f"detect_selectors error: {e}")
+            detected = None
 
-        # ── Step 1: 列表页 ──
-        raw_data = self.fetch(url)
-        if raw_data.status_code == 0:
-            self.logger.error(f"Failed to fetch {url}")
-            return []
+        if detected:
+            self.selectors = detected
+            self.logger.info(f"Selectors auto-detected: {detected}")
+            return "detector"
 
-        soup = BeautifulSoup(raw_data.raw_html, "lxml")
+        # 回退到 preset
+        preset = get_selectors(url)
+        # 判断是否命中 PRESETS（非 FALLBACK）
+        from scrapers.selector_presets import PRESETS, FALLBACK_SELECTORS
+        from urllib.parse import urlparse
+        hostname = urlparse(url).hostname or ""
+        is_preset = any(
+            hostname == d or hostname.endswith("." + d) for d in PRESETS
+        )
+        self.selectors = preset
+        source = "preset" if is_preset else "fallback"
+        self.logger.info(f"Selectors from {source}: {preset}")
+        return source
 
+    def _extract_list(self, url: str, soup: BeautifulSoup, limit: int) -> List[NewsArticle]:
+        """从列表页 soup 提取文章列表（Step 2 的独立方法，便于重试复用）。"""
         article_sel = self.selectors.get("article_selector", "")
         # 默认标题选择器：优先 h1/h2/h3 内的 a，回退到容器内首个有文本的 a
         title_sel = self.selectors.get("title_selector", "h1 a, h2 a, h3 a, h4 a, a")
         link_sel = self.selectors.get("link_selector", title_sel)
         summary_sel = self.selectors.get("summary_selector", "")
+        link_filter = self.selectors.get("link_filter", "")
 
         if article_sel:
             containers = soup.select(article_sel)
@@ -119,9 +138,7 @@ class GenericScraper(BaseScraper):
 
         self.logger.info(f"Found {len(containers)} containers, limit={limit}")
 
-        # ── Step 2: 提取列表项 ──
-        articles = []
-        link_filter = self.selectors.get("link_filter", "")
+        articles: List[NewsArticle] = []
 
         for container in containers:
             if len(articles) >= limit:
@@ -173,7 +190,59 @@ class GenericScraper(BaseScraper):
                 self.logger.warning(f"Parse error: {e}")
                 continue
 
+        return articles
+
+    def scrape(self, **kwargs) -> List[DataItem]:
+        """两步抓取：列表页提取标题+链接 → 详情页提取正文+日期。
+
+        选择器兜底链：self.selectors → detect_selectors(url) → get_selectors(url)
+        抓取 0 条时自动重新检测一次并重试。
+
+        Returns:
+            NewsArticle 列表（含完整正文）
+        """
+        url = kwargs.get("url") or self.target_url
+        limit = kwargs.get("limit", 20)
+
+        if not url:
+            self.logger.error("No URL configured")
+            return []
+
+        # ── 选择器兜底：article_selector 缺失时自动检测/回退 ──
+        selector_source = self._ensure_selectors(url)
+
+        self.logger.info(f"Scraping list: {url} (selectors={selector_source})")
+
+        # ── Step 1: 列表页 ──
+        raw_data = self.fetch(url)
+        if raw_data.status_code == 0:
+            self.logger.error(f"Failed to fetch {url}")
+            return []
+
+        soup = BeautifulSoup(raw_data.raw_html, "lxml")
+
+        # ── Step 2: 提取列表项 ──
+        articles = self._extract_list(url, soup, limit)
         self.logger.info(f"List extracted: {len(articles)} items")
+
+        # ── P0-6: 抓取 0 条时自动重新检测并重试一次 ──
+        if not articles and selector_source != "detector":
+            self.logger.warning(
+                f"Got 0 articles with {selector_source} selectors, "
+                f"retrying with detect_selectors..."
+            )
+            try:
+                from scrapers.selector_detector import detect_selectors
+                detected = detect_selectors(url)
+            except Exception as e:
+                self.logger.warning(f"Retry detect_selectors error: {e}")
+                detected = None
+
+            if detected and detected.get("article_selector"):
+                self.selectors = detected
+                self.logger.info(f"Retry with detected selectors: {detected}")
+                articles = self._extract_list(url, soup, limit)
+                self.logger.info(f"Retry list extracted: {len(articles)} items")
 
         # ── Step 3: 详情页提取正文（Readability 算法，不依赖选择器）──
         if articles and articles[0].source_url and articles[0].source_url != url:
