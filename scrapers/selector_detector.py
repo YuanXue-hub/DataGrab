@@ -9,6 +9,8 @@
 3. 分析容器内标题位置 → title_selector
 4. 抓取 1-2 个详情页，找文本量最大的元素 → content_selector
 5. 找日期/标签元素 → date_selector / tags_selector
+6. 试抓取验证：用检测出的 selectors 实际抓取前 3 条，校验有效性
+7. JS 渲染检测：抓取 1 个详情页，正文过短或含 noscript 提示则标记 js_rendered
 """
 
 import re
@@ -313,4 +315,178 @@ def detect_selectors(url: str) -> Optional[dict]:
                 selectors[k] = v
 
     logger.info(f"Detected selectors for {url}: {selectors}")
+
+    # 5. 试抓取验证：用检测出的 selectors 实际抓取前 3 条，校验有效性
+    validation = validate_selectors(url, selectors, sample_size=3, html=resp.text)
+    if not validation["passed"]:
+        logger.info(
+            f"Selectors validation failed: valid={validation['valid_count']}/"
+            f"{validation['total_count']}, fallback to None"
+        )
+        return None
+
+    # 6. JS 渲染检测：抓取首个样本详情页，正文过短或 noscript 提示则标记
+    if validation["samples"]:
+        first_detail = validation["samples"][0].get("url")
+        if first_detail:
+            selectors["js_rendered"] = _detect_js_rendered(first_detail)
+        else:
+            selectors["js_rendered"] = False
+    else:
+        selectors["js_rendered"] = False
+
+    logger.info(
+        f"Selectors validated: valid={validation['valid_count']}/"
+        f"{validation['total_count']}, js_rendered={selectors['js_rendered']}"
+    )
     return selectors
+
+
+def validate_selectors(
+    url: str,
+    selectors: dict,
+    sample_size: int = 3,
+    html: Optional[str] = None,
+) -> dict:
+    """用传入 selectors 实际抓取列表页前 N 条，校验有效性。
+
+    校验规则（每条样本需全部满足）：
+    - 标题长度 ≥ 6
+    - 链接同域（与列表页 base_url 比较）
+    - 链接含日期或文章特征（复用 _is_article_link 逻辑）
+
+    Args:
+        url: 列表页网址
+        selectors: 待验证的选择器字典
+        sample_size: 校验前 N 条，默认 3
+        html: 已抓取的列表页 HTML（避免重复请求），None 则内部抓取
+
+    Returns:
+        {
+            "valid_count": int,      # 通过校验的条数
+            "total_count": int,      # 实际抓取到的条数
+            "samples": [{"title", "url", "summary"}],
+            "passed": bool,          # total>=2 且 valid/total >= 0.6
+        }
+    """
+    result = {"valid_count": 0, "total_count": 0, "samples": [], "passed": False}
+
+    if not selectors or not selectors.get("article_selector"):
+        return result
+
+    # 抓取列表页 HTML（如未提供）
+    if html is None:
+        try:
+            r = httpx.get(url, headers=_HEADERS, timeout=15, follow_redirects=True)
+            if r.status_code != 200:
+                return result
+            html = r.text
+        except Exception as e:
+            logger.warning(f"validate_selectors fetch failed: {e}")
+            return result
+
+    soup = BeautifulSoup(html, "lxml")
+
+    article_sel = selectors.get("article_selector", "")
+    title_sel = selectors.get("title_selector", "a")
+    link_sel = selectors.get("link_selector", title_sel)
+    summary_sel = selectors.get("summary_selector", "")
+    link_filter = selectors.get("link_filter", "")
+
+    containers = soup.select(article_sel)
+    if not containers:
+        return result
+
+    samples = []
+    valid_count = 0
+
+    for container in containers:
+        if len(samples) >= sample_size:
+            break
+
+        try:
+            title_el = container.select_one(title_sel)
+            if not title_el:
+                continue
+            title = title_el.get_text(strip=True)
+            if not title or len(title) < 6:
+                continue
+
+            link = ""
+            link_el = container.select_one(link_sel)
+            if link_el and link_el.get("href"):
+                href = link_el["href"]
+                if link_filter and link_filter not in href:
+                    continue
+                link = urljoin(url, href) if href.startswith("/") else href
+
+            summary = ""
+            if summary_sel:
+                s_el = container.select_one(summary_sel)
+                if s_el:
+                    summary = s_el.get_text(strip=True)[:300]
+
+            # 校验：标题长度、链接同域、链接特征
+            is_valid = False
+            if link:
+                full = urljoin(url, link)
+                # _is_article_link 同时校验同域 + URL 特征
+                if _is_article_link(link, title, url):
+                    is_valid = True
+
+            samples.append({"title": title, "url": link, "summary": summary})
+            if is_valid:
+                valid_count += 1
+        except Exception:
+            continue
+
+    total = len(samples)
+    passed = total >= 2 and valid_count / max(total, 1) >= 0.6
+
+    return {
+        "valid_count": valid_count,
+        "total_count": total,
+        "samples": samples,
+        "passed": passed,
+    }
+
+
+def _detect_js_rendered(detail_url: str) -> bool:
+    """抓取详情页，判断是否为 JS 渲染页面。
+
+    判定规则（满足任一即视为 JS 渲染）：
+    - 正文文本 < 150 字（Readability 提取失败，可能正文由 JS 注入）
+    - 页面含 <noscript> 提示 "enable JavaScript"
+
+    Args:
+        detail_url: 详情页 URL
+
+    Returns:
+        True 表示疑似 JS 渲染页面
+    """
+    try:
+        r = httpx.get(detail_url, headers=_HEADERS, timeout=15, follow_redirects=True)
+        if r.status_code != 200:
+            return False
+        html = r.text
+    except Exception as e:
+        logger.warning(f"JS render check fetch failed: {e}")
+        return False
+
+    # 检查 noscript 提示
+    soup = BeautifulSoup(html, "lxml")
+    for ns in soup.select("noscript"):
+        text = ns.get_text(" ", strip=True).lower()
+        if "enable javascript" in text or ("javascript" in text and "enable" in text):
+            return True
+
+    # 检查正文长度
+    try:
+        from scrapers.content_extractor import extract_content
+        content = extract_content(html)
+        if len(content) < 150:
+            return True
+    except Exception:
+        pass
+
+    return False
