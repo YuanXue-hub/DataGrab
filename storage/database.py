@@ -43,11 +43,27 @@ def init_database():
                     description VARCHAR(200) DEFAULT '' COMMENT '描述',
                     source_type VARCHAR(20)  NOT NULL DEFAULT 'web' COMMENT '类型: web / rss / api',
                     selectors   JSON         DEFAULT NULL COMMENT '类型相关配置（web=CSS选择器，api=查询参数）',
+                    selector_source VARCHAR(20) DEFAULT 'manual' COMMENT '选择器来源: detector|preset|fallback|manual',
                     enabled     TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '是否启用',
                     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             """)
+
+            # 兼容已有数据库：如果旧 source 表缺少 selector_source 列则补上
+            cur.execute("""
+                SELECT COUNT(*) FROM information_schema.COLUMNS
+                WHERE TABLE_SCHEMA = 'DataGrab'
+                  AND TABLE_NAME = 'source'
+                  AND COLUMN_NAME = 'selector_source'
+            """)
+            if cur.fetchone()[0] == 0:
+                cur.execute(
+                    "ALTER TABLE source ADD COLUMN selector_source VARCHAR(20) "
+                    "DEFAULT 'manual' COMMENT '选择器来源: detector|preset|fallback|manual' "
+                    "AFTER selectors"
+                )
+                logger.info("Added selector_source column to existing source table")
 
             # scrape_job 表：爬取任务（持久化，支持历史回溯）
             cur.execute("""
@@ -141,16 +157,18 @@ def source_get(name: str) -> Optional[dict]:
 
 
 def source_create(name: str, url: str, description: str = "",
-                  source_type: str = "web", selectors: dict = None) -> int:
+                  source_type: str = "web", selectors: dict = None,
+                  selector_source: str = "manual") -> int:
     """创建数据源，返回 id。"""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO source (name, url, description, source_type, selectors) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO source (name, url, description, source_type, selectors, selector_source) "
+                "VALUES (%s, %s, %s, %s, %s, %s)",
                 (name, url, description, source_type,
-                 json.dumps(selectors, ensure_ascii=False) if selectors else None)
+                 json.dumps(selectors, ensure_ascii=False) if selectors else None,
+                 selector_source)
             )
         conn.commit()
         return cur.lastrowid
@@ -160,7 +178,7 @@ def source_create(name: str, url: str, description: str = "",
 
 def source_update(name: str, **kwargs):
     """更新数据源配置。"""
-    allowed = {"url", "description", "source_type", "selectors", "enabled"}
+    allowed = {"url", "description", "source_type", "selectors", "selector_source", "enabled"}
     updates = {k: v for k, v in kwargs.items() if k in allowed}
     if not updates:
         return

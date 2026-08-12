@@ -25,16 +25,22 @@ router = APIRouter()
 
 
 class SourceCreate(BaseModel):
-    """创建数据源——只需填 name + url"""
+    """创建数据源——只需填 name + url
+
+    selectors 可选：用户手动配置时传入，标记为 selector_source="manual"。
+    不传则系统自动检测/匹配预设。
+    """
     name: str = Field(..., description="数据源名称")
     url: str = Field(..., description="目标网址")
     description: str = Field(default="")
+    selectors: Optional[dict] = Field(default=None, description="手动配置的选择器（可选）")
 
 
 class SourceUpdate(BaseModel):
     url: Optional[str] = None
     description: Optional[str] = None
     enabled: Optional[bool] = None
+    selectors: Optional[dict] = None
 
 
 class URLTest(BaseModel):
@@ -88,6 +94,7 @@ def api_list_sources():
             "description": r.get("description", ""),
             "source_type": r.get("source_type", "web"),
             "selectors": sel,
+            "selector_source": r.get("selector_source", "manual"),
             "enabled": bool(r.get("enabled", 1)),
             "created_at": str(r.get("created_at", "")),
             "updated_at": str(r.get("updated_at", "")),
@@ -99,26 +106,43 @@ def api_list_sources():
 def api_create_source(body: SourceCreate):
     """创建数据源——只需 name + url，类型和选择器全自动。
 
+    用户也可手动传入 selectors，此时 selector_source 标记为 "manual"。
+
     示例:
         {"name": "新华网", "url": "https://www.news.cn"}
         {"name": "redroom-local", "url": "http://localhost:3000"}
+        {"name": "custom", "url": "https://x.com", "selectors": {"article_selector": "li.news"}}
     """
-    from scrapers.selector_presets import get_selectors
+    from scrapers.selector_presets import get_selectors, PRESETS
     from scrapers.selector_detector import detect_selectors
+    from urllib.parse import urlparse
 
-    # 自动检测类型 + 默认参数
-    source_type, auto_selectors = _detect_source_type(body.url)
-
-    # 选择器：web 类型自动检测（真实分析页面 HTML），失败才用预设
-    if source_type == "web":
-        detected = detect_selectors(body.url)
-        if detected:
-            selectors = detected
-        else:
-            selectors = get_selectors(body.url)
+    # 用户手动传入 selectors → 直接使用，标记为 manual
+    if body.selectors:
+        source_type, _ = _detect_source_type(body.url)
+        selectors = body.selectors
+        selector_source = "manual"
     else:
-        # api 类型：selectors = 查询参数
-        selectors = auto_selectors
+        # 自动检测类型 + 默认参数
+        source_type, auto_selectors = _detect_source_type(body.url)
+
+        # 选择器：web 类型自动检测（真实分析页面 HTML），失败才用预设
+        if source_type == "web":
+            detected = detect_selectors(body.url)
+            if detected:
+                selectors = detected
+                selector_source = "detector"
+            else:
+                selectors = get_selectors(body.url)
+                hostname = urlparse(body.url).hostname or ""
+                is_preset = any(
+                    hostname == d or hostname.endswith("." + d) for d in PRESETS
+                )
+                selector_source = "preset" if is_preset else "fallback"
+        else:
+            # api 类型：selectors = 查询参数
+            selectors = auto_selectors
+            selector_source = "manual"
 
     # 检查重复
     if source_get(body.name):
@@ -129,10 +153,12 @@ def api_create_source(body: SourceCreate):
         description=body.description,
         source_type=source_type,
         selectors=selectors,
+        selector_source=selector_source,
     )
     return {
         "success": True, "id": sid, "name": body.name,
         "source_type": source_type, "selectors": selectors,
+        "selector_source": selector_source,
     }
 
 
@@ -154,6 +180,9 @@ def api_update_source(name: str, body: SourceUpdate):
     if not source_get(name):
         raise HTTPException(status_code=404, detail=f"Source '{name}' not found")
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    # 手动修改 selectors 时，更新 selector_source 为 manual
+    if "selectors" in updates:
+        updates["selector_source"] = "manual"
     if updates:
         source_update(name, **updates)
     return {"success": True, "name": name}
