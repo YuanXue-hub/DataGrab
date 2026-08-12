@@ -47,6 +47,13 @@ class URLTest(BaseModel):
     url: str = Field(..., description="要测试的 URL")
 
 
+class PreviewRequest(BaseModel):
+    """选择器预览请求——输入 URL + 可选 selectors，返回抓取样本"""
+    url: str = Field(..., description="目标网址")
+    selectors: Optional[dict] = Field(default=None, description="手动配置的选择器（可选，不传则自动检测）")
+    sample_size: int = Field(default=3, ge=1, le=5, description="抓取样本数（1-5）")
+
+
 def _detect_source_type(url: str) -> tuple:
     """自动检测：api 还是 web。
 
@@ -215,3 +222,104 @@ def api_test_url(body: URLTest):
         )
     except Exception as e:
         return ConnectionTestResult(success=False, message=str(e))
+
+
+@router.post("/sources/preview")
+def api_preview_source(body: PreviewRequest):
+    """选择器预览：输入 URL + 可选 selectors，返回前 N 条抓取样本。
+
+    两种模式：
+    - 仅 URL：自动调用 detect_selectors，返回检测结果 + 试抓样本
+    - URL + selectors：跳过检测，直接用传入选择器试抓
+
+    返回 samples 包含标题、链接、摘要、正文前 200 字、正文长度、发布时间。
+    """
+    import time
+    import httpx
+    from urllib.parse import urlparse
+    from scrapers.selector_presets import get_selectors, PRESETS
+    from scrapers.selector_detector import detect_selectors, validate_selectors
+    from scrapers.content_extractor import extract_content, extract_date
+
+    start = time.monotonic()
+    url = body.url.rstrip("/")
+    sample_size = body.sample_size
+
+    # ── 1. 确定 selectors 和 selector_source ──
+    if body.selectors:
+        selectors = dict(body.selectors)
+        selector_source = "manual"
+    else:
+        try:
+            detected = detect_selectors(url)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"detect_selectors failed: {e}")
+
+        if detected:
+            selectors = detected
+            selector_source = "detector"
+        else:
+            selectors = get_selectors(url)
+            hostname = urlparse(url).hostname or ""
+            is_preset = any(
+                hostname == d or hostname.endswith("." + d) for d in PRESETS
+            )
+            selector_source = "preset" if is_preset else "fallback"
+
+    # ── 2. 抓取列表页 + 验证取样本 ──
+    validation = validate_selectors(url, selectors, sample_size=sample_size)
+
+    # ── 3. 抓取详情页，补充 content_preview 和 published_at ──
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+    }
+    samples = []
+    for s in validation["samples"]:
+        sample = {
+            "title": s.get("title", ""),
+            "url": s.get("url", ""),
+            "summary": (s.get("summary") or "")[:200],
+            "content_preview": "",
+            "content_length": 0,
+            "published_at": None,
+        }
+        if s.get("url"):
+            try:
+                r = httpx.get(s["url"], headers=headers, timeout=10, follow_redirects=True)
+                if r.status_code == 200:
+                    html = r.text
+                    content = extract_content(html)
+                    if content:
+                        sample["content_preview"] = content[:200]
+                        sample["content_length"] = len(content)
+                    date_str = extract_date(html)
+                    if date_str:
+                        sample["published_at"] = date_str
+            except Exception:
+                pass
+        samples.append(sample)
+
+    # ── 4. JS 渲染标记：detector 已标记则保留，否则根据样本正文长度判断 ──
+    js_rendered = bool(selectors.get("js_rendered", False))
+    if not js_rendered and samples:
+        short_count = sum(1 for s in samples if s["content_length"] < 150)
+        if short_count >= max(len(samples) // 2, 1):
+            js_rendered = True
+
+    elapsed_ms = round((time.monotonic() - start) * 1000)
+
+    return {
+        "success": True,
+        "url": url,
+        "selector_source": selector_source,
+        "selectors": selectors,
+        "js_rendered": js_rendered,
+        "samples": samples,
+        "validation": {
+            "total": validation["total_count"],
+            "valid": validation["valid_count"],
+            "passed": validation["passed"],
+        },
+        "elapsed_ms": elapsed_ms,
+    }
