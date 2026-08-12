@@ -1,10 +1,13 @@
 // ============ 数据源 ============
+export type SelectorSource = 'detector' | 'preset' | 'fallback' | 'manual'
+
 export interface SourceInfo {
   name: string
   url: string
   description: string
   source_type: 'web' | 'rss' | 'api'
   selectors: Record<string, any> | null
+  selector_source: SelectorSource
   enabled: boolean
   created_at: string
   updated_at: string
@@ -14,12 +17,14 @@ export interface SourceCreatePayload {
   name: string
   url: string
   description?: string
+  selectors?: Record<string, string> | null
 }
 
 export interface SourceUpdatePayload {
   url?: string
   description?: string
   enabled?: boolean
+  selectors?: Record<string, string> | null
 }
 
 export interface SourceCreateResponse {
@@ -28,6 +33,7 @@ export interface SourceCreateResponse {
   name: string
   source_type: string
   selectors: Record<string, any>
+  selector_source: SelectorSource
 }
 
 // ============ 连通性测试 ============
@@ -35,6 +41,37 @@ export interface ConnectionTestResult {
   success: boolean
   message: string
   latency_ms?: number
+}
+
+// ============ 选择器预览 ============
+export interface PreviewRequest {
+  url: string
+  selectors?: Record<string, string> | null
+  sample_size?: number
+}
+
+export interface PreviewSample {
+  title: string
+  url: string
+  summary: string
+  content_preview: string
+  content_length: number
+  published_at?: string | null
+}
+
+export interface PreviewResponse {
+  success: boolean
+  url: string
+  selector_source: SelectorSource
+  selectors: Record<string, any>
+  js_rendered: boolean
+  samples: PreviewSample[]
+  validation: {
+    total: number
+    valid: number
+    passed: boolean
+  }
+  elapsed_ms: number
 }
 
 // ============ 爬取任务 ============

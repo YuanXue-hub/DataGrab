@@ -5,6 +5,8 @@ import type {
   SourceUpdatePayload,
   SourceCreateResponse,
   ConnectionTestResult,
+  PreviewRequest,
+  PreviewResponse,
 } from '@/types'
 
 // 列出全部数据源
@@ -17,7 +19,7 @@ export function getSource(name: string) {
   return client.get<unknown, SourceInfo>(`/sources/${encodeURIComponent(name)}`)
 }
 
-// 创建数据源（只需 name + url，类型和选择器自动检测）
+// 创建数据源（只需 name + url，类型和选择器自动检测；可选手动传入 selectors）
 export function createSource(payload: SourceCreatePayload) {
   return client.post<unknown, SourceCreateResponse>('/sources', payload)
 }
@@ -40,4 +42,11 @@ export function deleteSource(name: string) {
 // 测试 URL 连通性
 export function testUrl(url: string) {
   return client.post<unknown, ConnectionTestResult>('/sources/test', { url })
+}
+
+// 选择器预览：输入 URL + 可选 selectors，返回前 N 条抓取样本
+export function previewSource(payload: PreviewRequest) {
+  return client.post<unknown, PreviewResponse>('/sources/preview', payload, {
+    timeout: 60000, // 预览可能涉及详情页抓取，放宽到 60s
+  })
 }
