@@ -141,16 +141,17 @@ def api_export_data(
         if source_name:
             title = f"DataGrab 数据报告 - {source_name}"
 
-        # 生成到临时文件，读取后删除
-        with tempfile.NamedTemporaryFile(suffix=".docx", delete=False) as tmp:
-            tmp_path = tmp.name
-
+        # 生成到临时目录，WordExporter 内部会追加时间戳到文件名
+        tmp_dir = tempfile.mkdtemp()
+        tmp_stub = os.path.join(tmp_dir, "export.docx")
         try:
-            export_to_word(repo, tmp_path, report_title=title)
-            with open(tmp_path, "rb") as f:
+            actual_path = export_to_word(repo, tmp_stub, report_title=title)
+            with open(actual_path, "rb") as f:
                 docx_content = f.read()
         finally:
-            os.unlink(tmp_path)
+            # 清理临时目录下的所有文件（含 word_exporter 追加的时间戳文件）
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
 
         return Response(
             content=docx_content,
