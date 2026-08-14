@@ -3,6 +3,7 @@ import type {
   ScrapeRequestPayload,
   ScrapeJobResponse,
   ScrapeJobListResponse,
+  JobDataResponse,
 } from '@/types'
 
 export interface JobListParams {
@@ -26,5 +27,13 @@ export function listJobs(params: JobListParams = {}) {
 export function getScrapeJob(jobId: string) {
   return client.get<unknown, ScrapeJobResponse>(
     `/scrape/${encodeURIComponent(jobId)}`,
+  )
+}
+
+// 查询某次任务实际抓取到的数据（从 grab 表按 job_id 过滤，持久化）
+export function getJobData(jobId: string, limit = 100) {
+  return client.get<unknown, JobDataResponse>(
+    `/scrape/${encodeURIComponent(jobId)}/data`,
+    { params: { limit } },
   )
 }

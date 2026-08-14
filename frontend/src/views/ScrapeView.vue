@@ -171,8 +171,11 @@
       width="780px"
       :close-on-click-modal="false"
     >
-      <el-empty v-if="!currentResults.length" description="无结果数据" />
-      <el-table v-else :data="currentResults" max-height="500" border>
+      <div v-loading="resultLoading">
+        <el-empty v-if="!currentResults.length && !resultLoading" description="无结果数据" />
+        <template v-else>
+          <div class="result-meta">共 {{ currentResults.length }} 条数据</div>
+          <el-table :data="currentResults" max-height="500" border>
         <el-table-column label="标题" min-width="200" show-overflow-tooltip>
           <template #default="{ row }: { row: any }">
             {{ row.title || '(无标题)' }}
@@ -196,7 +199,9 @@
             </el-link>
           </template>
         </el-table-column>
-      </el-table>
+          </el-table>
+        </template>
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -208,11 +213,12 @@ import {
   Download, VideoPlay, List, Refresh, View, Warning,
 } from '@element-plus/icons-vue'
 import { listSources } from '@/api/sources'
-import { triggerScrape, getScrapeJob, listJobs } from '@/api/scrape'
+import { triggerScrape, getScrapeJob, listJobs, getJobData } from '@/api/scrape'
 import type {
   SourceInfo,
   ScrapeJobResponse,
   ScrapeJobStatus,
+  DataItem,
 } from '@/types'
 
 const sources = ref<SourceInfo[]>([])
@@ -239,7 +245,8 @@ const page = reactive({
 })
 
 const resultVisible = ref(false)
-const currentResults = ref<any[]>([])
+const resultLoading = ref(false)
+const currentResults = ref<DataItem[]>([])
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
@@ -319,9 +326,18 @@ async function refreshOne(job: ScrapeJobResponse) {
   }
 }
 
-function viewResult(job: ScrapeJobResponse) {
-  currentResults.value = job.results || []
+async function viewResult(job: ScrapeJobResponse) {
   resultVisible.value = true
+  resultLoading.value = true
+  currentResults.value = []
+  try {
+    const res = await getJobData(job.job_id, 100)
+    currentResults.value = res.items
+  } catch {
+    ElMessage.error('加载结果数据失败')
+  } finally {
+    resultLoading.value = false
+  }
 }
 
 function viewError(job: ScrapeJobResponse) {
@@ -408,5 +424,11 @@ onUnmounted(stopPolling)
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+.result-meta {
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #6b7280;
 }
 </style>

@@ -36,12 +36,6 @@
           </el-icon>
           <span class="page-title">{{ currentTitle }}</span>
         </div>
-        <div class="header-right">
-          <el-tag type="success" effect="plain" size="small">
-            <el-icon><CircleCheck /></el-icon>
-            FastAPI 后端
-          </el-tag>
-        </div>
       </el-header>
 
       <!-- 主内容区 -->
@@ -55,7 +49,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { Fold, Expand, CircleCheck } from '@element-plus/icons-vue'
+import { Fold, Expand } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const collapsed = ref(false)

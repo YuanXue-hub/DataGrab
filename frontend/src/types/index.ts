@@ -103,6 +103,13 @@ export interface ScrapeJobListResponse {
   items: ScrapeJobResponse[]
 }
 
+// ============ 任务抓取数据 ============
+export interface JobDataResponse {
+  job_id: string
+  total: number
+  items: DataItem[]
+}
+
 // ============ 已爬取数据 ============
 export interface DataItem {
   id: number
