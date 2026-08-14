@@ -1,11 +1,59 @@
 <template>
-  <div class="page">
-    <!-- 顶部操作栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
+  <div class="dg-page">
+    <!-- 顶部统计卡片 -->
+    <el-row :gutter="16" class="stat-row">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--emerald">
+            <el-icon><Files /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ sources.length }}</span>
+            <span class="dg-stat-label">数据源总数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--green">
+            <el-icon><CircleCheck /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ enabledCount }}</span>
+            <span class="dg-stat-label">已启用</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--blue">
+            <el-icon><Link /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ webCount }}</span>
+            <span class="dg-stat-label">Web 类型</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--amber">
+            <el-icon><Connection /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ apiCount }}</span>
+            <span class="dg-stat-label">API 类型</span>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 工具栏 -->
+    <div class="dg-toolbar">
+      <div class="dg-toolbar-left">
         <el-input
           v-model="search"
-          placeholder="搜索名称/URL"
+          placeholder="搜索名称 / URL"
           clearable
           style="width: 260px"
           :prefix-icon="Search"
@@ -20,11 +68,9 @@
           <el-option label="api" value="api" />
           <el-option label="rss" value="rss" />
         </el-select>
-        <el-button type="primary" :icon="Refresh" @click="loadSources">
-          刷新
-        </el-button>
+        <el-button :icon="Refresh" @click="loadSources">刷新</el-button>
       </div>
-      <div class="toolbar-right">
+      <div class="dg-toolbar-right">
         <el-button type="primary" :icon="Plus" @click="openCreate">
           新增数据源
         </el-button>
@@ -32,12 +78,11 @@
     </div>
 
     <!-- 数据源列表 -->
-    <el-card shadow="never" class="card">
+    <el-card shadow="never" class="main-card">
       <el-table
         v-loading="loading"
         :data="filteredSources"
         stripe
-        border
         style="width: 100%"
       >
         <el-table-column label="名称" prop="name" min-width="120">
@@ -71,7 +116,7 @@
         </el-table-column>
         <el-table-column label="更新时间" width="160">
           <template #default="{ row }: { row: any }">
-            <span class="muted">{{ formatTime(row.updated_at) }}</span>
+            <span class="dg-muted">{{ formatTime(row.updated_at) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="280" fixed="right">
@@ -90,6 +135,12 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="dg-empty">
+            <div class="dg-empty-title">暂无数据源</div>
+            <div class="dg-empty-desc">点击右上角「新增数据源」开始配置</div>
+          </div>
+        </template>
       </el-table>
     </el-card>
 
@@ -175,14 +226,14 @@
       v-model="previewVisible"
       title="选择器抓取预览"
       direction="rtl"
-      size="70%"
+      size="72%"
     >
       <div v-loading="previewLoading" class="preview-container">
         <div v-if="previewResult" class="preview-layout">
           <!-- 左侧：样本卡片 -->
           <div class="preview-samples">
             <div class="preview-header">
-              <h3>抓取样本（{{ previewResult.samples.length }} 条）</h3>
+              <h3 class="preview-title">抓取样本（{{ previewResult.samples.length }} 条）</h3>
               <el-tag
                 :type="previewResult.validation.passed ? 'success' : 'danger'"
                 effect="dark"
@@ -211,20 +262,22 @@
                 <span v-if="s.published_at">发布: {{ s.published_at }}</span>
               </div>
             </div>
-            <el-empty
-              v-if="previewResult.samples.length === 0"
-              description="未抓取到样本，请检查选择器或 URL"
-            />
+            <div v-if="previewResult.samples.length === 0" class="dg-empty">
+              <div class="dg-empty-title">未抓取到样本</div>
+              <div class="dg-empty-desc">请检查选择器或 URL 配置</div>
+            </div>
           </div>
 
           <!-- 右侧：选择器配置 -->
           <div class="preview-config">
             <div class="config-section">
               <div class="config-label">来源</div>
-              <el-tag :type="sourceTag(previewResult.selector_source)" effect="dark" size="small">
-                {{ sourceLabel(previewResult.selector_source) }}
-              </el-tag>
-              <span class="config-time">耗时 {{ previewResult.elapsed_ms }}ms</span>
+              <div class="config-source-row">
+                <el-tag :type="sourceTag(previewResult.selector_source)" effect="dark" size="small">
+                  {{ sourceLabel(previewResult.selector_source) }}
+                </el-tag>
+                <span class="config-time">耗时 {{ previewResult.elapsed_ms }}ms</span>
+              </div>
             </div>
 
             <div v-if="previewResult.js_rendered" class="config-section">
@@ -264,15 +317,15 @@
               <div class="config-label">验证结果</div>
               <div class="validation-grid">
                 <div class="validation-item">
-                  <span class="muted">总样本</span>
+                  <span class="dg-muted">总样本</span>
                   <b>{{ previewResult.validation.total }}</b>
                 </div>
                 <div class="validation-item">
-                  <span class="muted">有效</span>
+                  <span class="dg-muted">有效</span>
                   <b class="success-text">{{ previewResult.validation.valid }}</b>
                 </div>
                 <div class="validation-item">
-                  <span class="muted">通过</span>
+                  <span class="dg-muted">通过</span>
                   <b :class="previewResult.validation.passed ? 'success-text' : 'danger-text'">
                     {{ previewResult.validation.passed ? '是' : '否' }}
                   </b>
@@ -310,6 +363,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, ElLoading, type FormInstance, type FormRules } from 'element-plus'
 import {
   Search, Refresh, Plus, Edit, Delete, VideoPause, View,
+  Files, CircleCheck, Link, Connection,
 } from '@element-plus/icons-vue'
 import {
   listSources, createSource, updateSource, deleteSource, testUrl, previewSource,
@@ -354,6 +408,11 @@ const rules: FormRules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
   url: [{ required: true, message: '请输入 URL', trigger: 'blur' }],
 }
+
+// 统计卡片
+const enabledCount = computed(() => sources.value.filter((s) => s.enabled).length)
+const webCount = computed(() => sources.value.filter((s) => s.source_type === 'web').length)
+const apiCount = computed(() => sources.value.filter((s) => s.source_type === 'api').length)
 
 const filteredSources = computed(() => {
   const kw = search.value.trim().toLowerCase()
@@ -582,45 +641,70 @@ onMounted(loadSources)
 </script>
 
 <style scoped>
-.page {
+/* 统计卡片 */
+.stat-row {
+  margin-bottom: 0;
+}
+
+.stat-card {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 16px;
 }
 
-.toolbar {
+.stat-card :deep(.el-card__body) {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 20px;
 }
 
-.toolbar-left {
+.stat-icon {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dg-radius-sm);
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
-.card {
-  border-radius: 8px;
+.stat-icon--emerald {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--dg-emerald);
+}
+
+.stat-icon--green {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--dg-emerald-dark);
+}
+
+.stat-icon--blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.stat-icon--amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+/* 主卡片 */
+.main-card :deep(.el-card__body) {
+  padding: 0;
 }
 
 .source-name {
   font-weight: 600;
-  color: #1f2937;
-}
-
-.muted {
-  color: #6b7280;
-  font-size: 13px;
+  color: var(--dg-text);
 }
 
 /* 高级配置折叠区 */
 .advanced-collapse {
   margin: 8px 0 12px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius-sm);
 }
 
 .form-actions {
@@ -630,7 +714,7 @@ onMounted(loadSources)
 }
 
 .mono-input :deep(textarea) {
-  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-family: 'JetBrains Mono', 'SF Mono', Monaco, Consolas, monospace;
   font-size: 12px;
 }
 
@@ -641,7 +725,7 @@ onMounted(loadSources)
 
 .preview-layout {
   display: flex;
-  gap: 20px;
+  gap: 24px;
   height: 100%;
 }
 
@@ -656,38 +740,45 @@ onMounted(loadSources)
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
-.preview-header h3 {
+.preview-title {
   margin: 0;
-  font-size: 15px;
-  color: #1f2937;
+  font-size: 16px;
+  color: var(--dg-text);
 }
 
 .sample-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 12px;
+  background: var(--dg-surface);
+  border: 1px solid var(--dg-border);
+  border-radius: var(--dg-radius);
+  padding: 16px;
   margin-bottom: 12px;
-  background: #fafafa;
+  box-shadow: var(--dg-shadow-sm);
+  transition: box-shadow var(--dg-transition);
+}
+
+.sample-card:hover {
+  box-shadow: var(--dg-shadow-md);
 }
 
 .sample-title {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .sample-idx {
-  color: #9ca3af;
+  color: var(--dg-text-muted);
   font-size: 12px;
   font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .sample-link {
-  color: #2563eb;
+  color: var(--dg-emerald-dark);
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
@@ -695,19 +786,20 @@ onMounted(loadSources)
 }
 
 .sample-link:hover {
+  color: var(--dg-emerald);
   text-decoration: underline;
 }
 
 .sample-summary {
-  font-size: 12px;
-  color: #6b7280;
-  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--dg-text-secondary);
+  margin-bottom: 8px;
   line-height: 1.5;
 }
 
 .sample-content {
-  font-size: 12px;
-  color: #374151;
+  font-size: 13px;
+  color: var(--dg-text);
   line-height: 1.5;
   max-height: 100px;
   overflow: hidden;
@@ -715,54 +807,60 @@ onMounted(loadSources)
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .sample-meta {
   display: flex;
   gap: 16px;
   font-size: 12px;
-  color: #6b7280;
+  color: var(--dg-text-muted);
 }
 
 .sample-meta b {
-  color: #1f2937;
+  color: var(--dg-text);
 }
 
 .preview-config {
   flex: 2;
   min-width: 0;
-  border-left: 1px solid #e5e7eb;
-  padding-left: 20px;
+  border-left: 1px solid var(--dg-border);
+  padding-left: 24px;
   overflow-y: auto;
 }
 
 .config-section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .config-label {
   font-size: 13px;
   font-weight: 600;
-  color: #374151;
-  margin-bottom: 8px;
+  color: var(--dg-text);
+  margin-bottom: 10px;
+}
+
+.config-source-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .config-time {
-  margin-left: 12px;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--dg-text-muted);
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .config-actions {
-  margin-top: 8px;
+  margin-top: 10px;
   display: flex;
   gap: 8px;
 }
 
 .validation-grid {
   display: flex;
-  gap: 20px;
+  gap: 24px;
 }
 
 .validation-item {
@@ -773,12 +871,13 @@ onMounted(loadSources)
 }
 
 .validation-item b {
-  font-size: 18px;
-  color: #1f2937;
+  font-size: 20px;
+  color: var(--dg-text);
+  font-family: 'Outfit', sans-serif;
 }
 
 .success-text {
-  color: #10b981;
+  color: var(--dg-emerald);
 }
 
 .danger-text {
@@ -788,7 +887,7 @@ onMounted(loadSources)
 .config-hint {
   font-size: 12px;
   font-weight: 400;
-  color: #9ca3af;
+  color: var(--dg-text-muted);
   margin-left: 4px;
 }
 

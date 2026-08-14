@@ -1,60 +1,129 @@
 <template>
-  <div class="page">
+  <div class="dg-page">
+    <!-- 顶部统计卡片 -->
+    <el-row :gutter="16" class="stat-row">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--slate">
+            <el-icon><Upload /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ totalExports }}</span>
+            <span class="dg-stat-label">本次会话导出次数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--emerald">
+            <el-icon><Document /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ jsonCount }}</span>
+            <span class="dg-stat-label">JSON 次数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--amber">
+            <el-icon><Grid /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ csvCount }}</span>
+            <span class="dg-stat-label">CSV 次数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--blue">
+            <el-icon><Notebook /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ docxCount }}</span>
+            <span class="dg-stat-label">Word 次数</span>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 导出表单 -->
-    <el-card shadow="never" class="card">
+    <el-card shadow="never">
       <template #header>
-        <div class="card-header">
-          <span><el-icon><Upload /></el-icon> 导出已爬取数据</span>
+        <div class="dg-card-header">
+          <span class="card-title">
+            <el-icon class="card-title-icon"><Upload /></el-icon>
+            导出已爬取数据
+          </span>
         </div>
       </template>
 
-      <el-form :model="form" label-width="100px" inline>
-        <el-form-item label="数据源">
-          <el-select
-            v-model="form.source_name"
-            placeholder="全部数据源"
-            clearable
-            style="width: 220px"
-          >
-            <el-option
-              v-for="s in sources"
-              :key="s.name"
-              :label="s.name"
-              :value="s.name"
-            />
-          </el-select>
-        </el-form-item>
+      <el-form :model="form" label-position="top" class="export-form">
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="12" :md="8">
+            <el-form-item label="数据源">
+              <el-select
+                v-model="form.source_name"
+                placeholder="全部数据源"
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="s in sources"
+                  :key="s.name"
+                  :label="s.name"
+                  :value="s.name"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="8">
+            <el-form-item label="最大条数">
+              <el-input-number
+                v-model="form.limit"
+                :min="1"
+                :max="5000"
+                :step="100"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="24" :md="8">
+            <el-form-item label="操作">
+              <el-button
+                type="primary"
+                :icon="Download"
+                :loading="exporting"
+                size="large"
+                class="export-btn"
+                @click="onExport"
+              >
+                生成导出
+              </el-button>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-form-item label="导出格式">
-          <el-radio-group v-model="form.format">
-            <el-radio-button value="json">
-              <el-icon><Document /></el-icon> JSON
-            </el-radio-button>
-            <el-radio-button value="csv">
-              <el-icon><Grid /></el-icon> CSV
-            </el-radio-button>
-            <el-radio-button value="docx">
-              <el-icon><Notebook /></el-icon> Word
-            </el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="最大条数">
-          <el-input-number
-            v-model="form.limit"
-            :min="1"
-            :max="5000"
-            :step="100"
-            style="width: 160px"
-          />
-        </el-form-item>
-        <el-form-item>
-          <el-button
-            type="primary"
-            :icon="Download"
-            :loading="exporting"
-            @click="onExport"
-          >
-            生成导出
-          </el-button>
+          <div class="format-cards">
+            <div
+              v-for="opt in formatOptions"
+              :key="opt.value"
+              class="format-card"
+              :class="{ 'is-active': form.format === opt.value }"
+              @click="form.format = opt.value"
+            >
+              <div class="format-card-head">
+                <el-icon class="format-card-icon"><component :is="opt.icon" /></el-icon>
+                <el-icon v-if="form.format === opt.value" class="format-card-check">
+                  <Select />
+                </el-icon>
+              </div>
+              <div class="format-card-name">{{ opt.label }}</div>
+              <div class="format-card-desc">{{ opt.desc }}</div>
+            </div>
+          </div>
         </el-form-item>
       </el-form>
 
@@ -67,11 +136,14 @@
     </el-card>
 
     <!-- 导出结果展示 -->
-    <el-card v-if="lastResult" shadow="never" class="card">
+    <el-card v-if="lastResult" shadow="never">
       <template #header>
-        <div class="card-header">
-          <span><el-icon><CircleCheck /></el-icon> 最近一次导出</span>
-          <el-tag :type="lastResult.success ? 'success' : 'danger'" size="small">
+        <div class="dg-card-header">
+          <span class="card-title">
+            <el-icon class="card-title-icon"><CircleCheck /></el-icon>
+            最近一次导出
+          </span>
+          <el-tag :type="lastResult.success ? 'success' : 'danger'" size="small" effect="dark">
             {{ lastResult.success ? '成功' : '失败' }}
           </el-tag>
         </div>
@@ -89,7 +161,7 @@
         </el-descriptions-item>
       </el-descriptions>
 
-      <div v-if="lastResult.format === 'json' && lastResult.content" style="margin-top: 16px">
+      <div v-if="lastResult.format === 'json' && lastResult.content" class="json-section">
         <div class="result-actions">
           <span class="result-label">JSON 预览（前 50 条）</span>
           <el-button type="primary" size="small" :icon="Download" @click="downloadJson">
@@ -99,7 +171,7 @@
         <pre class="json-preview">{{ jsonPreview }}</pre>
       </div>
 
-      <div v-if="lastResult.format === 'csv' || lastResult.format === 'docx'" style="margin-top: 16px">
+      <div v-if="lastResult.format === 'csv' || lastResult.format === 'docx'" class="file-alert">
         <el-alert
           type="warning"
           :closable="false"
@@ -111,14 +183,17 @@
     </el-card>
 
     <!-- 历史导出记录 -->
-    <el-card v-if="history.length" shadow="never" class="card">
+    <el-card v-if="history.length" shadow="never">
       <template #header>
-        <div class="card-header">
-          <span><el-icon><Clock /></el-icon> 本次会话导出历史</span>
+        <div class="dg-card-header">
+          <span class="card-title">
+            <el-icon class="card-title-icon"><Clock /></el-icon>
+            本次会话导出历史
+          </span>
           <el-button size="small" link :icon="Delete" @click="history = []">清空</el-button>
         </div>
       </template>
-      <el-timeline>
+      <el-timeline class="history-timeline">
         <el-timeline-item
           v-for="(h, idx) in history"
           :key="idx"
@@ -126,11 +201,23 @@
           :type="h.success ? 'success' : 'danger'"
           placement="top"
         >
-          <span class="hist-format">{{ h.format?.toUpperCase() }}</span>
-          <span class="hist-source">{{ h.source_name || '全部数据源' }}</span>
-          <span class="hist-meta">{{ h.message || (h.success ? '成功' : '失败') }}</span>
+          <div class="hist-item">
+            <span class="hist-format" :class="`hist-format--${h.format}`">
+              {{ h.format?.toUpperCase() }}
+            </span>
+            <span class="hist-source">{{ h.source_name || '全部数据源' }}</span>
+            <span class="hist-meta">{{ h.message || (h.success ? '成功' : '失败') }}</span>
+          </div>
         </el-timeline-item>
       </el-timeline>
+    </el-card>
+
+    <!-- 空状态：无历史记录时 -->
+    <el-card v-else shadow="never">
+      <div class="dg-empty">
+        <div class="dg-empty-title">暂无导出记录</div>
+        <div class="dg-empty-desc">配置上方参数并点击「生成导出」开始</div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -139,7 +226,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Upload, Download, Document, Grid, CircleCheck, Clock, Delete, Notebook,
+  Upload, Download, Document, Grid, CircleCheck, Clock, Delete, Notebook, Select,
 } from '@element-plus/icons-vue'
 import { listSources } from '@/api/sources'
 import { exportData } from '@/api/export'
@@ -164,6 +251,18 @@ interface HistoryItem {
   file_path?: string | null
 }
 const history = ref<HistoryItem[]>([])
+
+const formatOptions: { value: ExportFormat; label: string; desc: string; icon: any }[] = [
+  { value: 'json', label: 'JSON', desc: '浏览器直接下载', icon: Document },
+  { value: 'csv', label: 'CSV', desc: '表格文件', icon: Grid },
+  { value: 'docx', label: 'Word', desc: '文档文件', icon: Notebook },
+]
+
+// 统计卡片
+const totalExports = computed(() => history.value.length)
+const jsonCount = computed(() => history.value.filter((h) => h.format === 'json').length)
+const csvCount = computed(() => history.value.filter((h) => h.format === 'csv').length)
+const docxCount = computed(() => history.value.filter((h) => h.format === 'docx').length)
 
 // JSON 预览（前 50 条）
 const jsonPreview = computed(() => {
@@ -230,68 +329,227 @@ onMounted(loadSources)
 </script>
 
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* 统计卡片 */
+.stat-row {
+  margin-bottom: 0;
 }
 
-.card {
-  border-radius: 8px;
-}
-
-.card-header {
+.stat-card :deep(.el-card__body) {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  padding: 20px;
 }
 
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dg-radius-sm);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.stat-icon--slate {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.stat-icon--emerald {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--dg-emerald);
+}
+
+.stat-icon--amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.stat-icon--blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* 卡片标题 */
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--dg-text);
+}
+
+.card-title-icon {
+  font-size: 16px;
+  color: var(--dg-emerald);
+}
+
+/* 导出表单 */
+.export-btn {
+  width: 100%;
+}
+
+/* 格式选择卡片 */
+.format-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.format-card {
+  position: relative;
+  border: 1.5px solid var(--dg-border);
+  border-radius: var(--dg-radius-sm);
+  padding: 16px;
+  cursor: pointer;
+  transition: all var(--dg-transition);
+  background: var(--dg-surface);
+}
+
+.format-card:hover {
+  border-color: var(--dg-emerald-light);
+  box-shadow: var(--dg-shadow-sm);
+}
+
+.format-card:active {
+  transform: scale(0.98);
+}
+
+.format-card.is-active {
+  border-color: var(--dg-emerald);
+  background: var(--el-color-primary-light-9);
+  box-shadow: 0 0 0 1px var(--dg-emerald) inset;
+}
+
+.format-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.format-card-icon {
+  font-size: 22px;
+  color: var(--dg-text-secondary);
+  transition: color var(--dg-transition);
+}
+
+.format-card.is-active .format-card-icon {
+  color: var(--dg-emerald);
+}
+
+.format-card-check {
+  font-size: 16px;
+  color: var(--dg-emerald);
+}
+
+.format-card-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--dg-text);
+}
+
+.format-card-desc {
+  font-size: 12px;
+  color: var(--dg-text-muted);
+  margin-top: 2px;
+}
+
+/* 文件路径 */
 .path {
-  font-family: 'SF Mono', Menlo, Consolas, monospace;
-  background: #f3f4f6;
-  padding: 2px 6px;
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  background: var(--dg-bg);
+  padding: 2px 8px;
   border-radius: 4px;
   font-size: 13px;
   color: #dc2626;
+  word-break: break-all;
+}
+
+/* JSON 预览 */
+.json-section {
+  margin-top: 20px;
 }
 
 .result-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .result-label {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--dg-text);
+  font-size: 14px;
 }
 
 .json-preview {
   background: #0f172a;
   color: #e2e8f0;
-  padding: 12px;
-  border-radius: 6px;
-  font-family: 'SF Mono', Menlo, Consolas, monospace;
-  font-size: 12px;
-  max-height: 360px;
+  padding: 16px;
+  border-radius: var(--dg-radius-sm);
+  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  max-height: 400px;
   overflow: auto;
   margin: 0;
+  border: 1px solid #1e293b;
+}
+
+.file-alert {
+  margin-top: 16px;
+}
+
+/* 历史记录 */
+.history-timeline {
+  padding-top: 4px;
+}
+
+.hist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .hist-format {
+  font-family: 'Outfit', sans-serif;
   font-weight: 700;
-  color: #2563eb;
-  margin-right: 10px;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.hist-format--json {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--dg-emerald-dark);
+}
+
+.hist-format--csv {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.hist-format--docx {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
 }
 
 .hist-source {
-  color: #4b5563;
-  margin-right: 10px;
+  color: var(--dg-text);
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .hist-meta {
-  color: #6b7280;
+  color: var(--dg-text-muted);
   font-size: 13px;
 }
 </style>

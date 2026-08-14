@@ -1,61 +1,107 @@
 <template>
-  <div class="page">
-    <!-- 筛选栏 -->
-    <el-card shadow="never" class="card">
-      <el-form inline>
-        <el-form-item label="数据源">
-          <el-select
-            v-model="filters.source_name"
-            placeholder="全部数据源"
-            clearable
-            style="width: 200px"
-            @change="resetAndLoad"
-          >
-            <el-option
-              v-for="s in sources"
-              :key="s.name"
-              :label="s.name"
-              :value="s.name"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关键词">
-          <el-input
-            v-model="filters.keyword"
-            placeholder="标题/正文搜索"
-            clearable
-            style="width: 220px"
-            @keyup.enter="resetAndLoad"
-            @clear="resetAndLoad"
+  <div class="dg-page">
+    <!-- 顶部统计卡片 -->
+    <el-row :gutter="16" class="stat-row">
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--slate">
+            <el-icon><DataAnalysis /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ total }}</span>
+            <span class="dg-stat-label">总数据条数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--emerald">
+            <el-icon><Filter /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ filteredCount }}</span>
+            <span class="dg-stat-label">当前筛选结果数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--amber">
+            <el-icon><Document /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ zhCount }}</span>
+            <span class="dg-stat-label">中文数据数</span>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="12" :sm="12" :md="6">
+        <el-card shadow="never" class="stat-card">
+          <div class="stat-icon stat-icon--blue">
+            <el-icon><Reading /></el-icon>
+          </div>
+          <div class="dg-stat">
+            <span class="dg-stat-value">{{ enCount }}</span>
+            <span class="dg-stat-label">英文数据数</span>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 工具栏 -->
+    <div class="dg-toolbar">
+      <div class="dg-toolbar-left">
+        <el-select
+          v-model="filters.source_name"
+          placeholder="全部数据源"
+          clearable
+          style="width: 200px"
+          @change="resetAndLoad"
+        >
+          <el-option
+            v-for="s in sources"
+            :key="s.name"
+            :label="s.name"
+            :value="s.name"
           />
-        </el-form-item>
-        <el-form-item label="语言">
-          <el-select
-            v-model="filters.language"
-            placeholder="全部"
-            clearable
-            style="width: 110px"
-            @change="resetAndLoad"
-          >
-            <el-option label="中文" value="zh" />
-            <el-option label="English" value="en" />
-            <el-option label="Русский" value="ru" />
-            <el-option label="Українська" value="uk" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" :icon="Search" @click="resetAndLoad">查询</el-button>
-          <el-button :icon="Refresh" @click="onReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
+        </el-select>
+        <el-input
+          v-model="filters.keyword"
+          placeholder="标题 / 正文搜索"
+          clearable
+          style="width: 240px"
+          :prefix-icon="Search"
+          @keyup.enter="resetAndLoad"
+          @clear="resetAndLoad"
+        />
+        <el-select
+          v-model="filters.language"
+          placeholder="全部语言"
+          clearable
+          style="width: 130px"
+          @change="resetAndLoad"
+        >
+          <el-option label="中文" value="zh" />
+          <el-option label="English" value="en" />
+          <el-option label="Русский" value="ru" />
+          <el-option label="Українська" value="uk" />
+        </el-select>
+      </div>
+      <div class="dg-toolbar-right">
+        <el-button type="primary" :icon="Search" @click="resetAndLoad">查询</el-button>
+        <el-button :icon="Refresh" @click="onReset">重置</el-button>
+      </div>
+    </div>
 
     <!-- 数据表格 -->
-    <el-card shadow="never" class="card">
+    <el-card shadow="never" class="main-card">
       <template #header>
-        <div class="card-header">
-          <span><el-icon><Document /></el-icon> 已爬取数据</span>
-          <el-tag type="info" size="small">共 {{ total }} 条</el-tag>
+        <div class="dg-card-header">
+          <span class="card-title">
+            <el-icon class="card-title-icon"><Document /></el-icon>
+            已爬取数据
+          </span>
+          <el-tag type="info" size="small" effect="plain">共 {{ total }} 条</el-tag>
         </div>
       </template>
 
@@ -63,7 +109,6 @@
         v-loading="loading"
         :data="displayItems"
         stripe
-        border
         style="width: 100%"
         @row-click="openDetail"
       >
@@ -85,7 +130,7 @@
         </el-table-column>
         <el-table-column label="摘要" min-width="320" show-overflow-tooltip>
           <template #default="{ row }: { row: any }">
-            <span class="muted">{{ row.summary || row.content?.slice(0, 100) || '-' }}</span>
+            <span class="dg-muted">{{ row.summary || row.content?.slice(0, 100) || '-' }}</span>
           </template>
         </el-table-column>
         <el-table-column label="数据源" width="120" prop="source_name" />
@@ -100,14 +145,14 @@
             >
               {{ t }}
             </el-tag>
-            <span v-if="(row.tags?.length || 0) > 3" class="muted">
+            <span v-if="(row.tags?.length || 0) > 3" class="dg-muted">
               +{{ row.tags.length - 3 }}
             </span>
           </template>
         </el-table-column>
         <el-table-column label="抓取时间" width="160">
           <template #default="{ row }: { row: any }">
-            <span class="muted">{{ formatTime(row.grabbed_at) }}</span>
+            <span class="dg-muted">{{ formatTime(row.grabbed_at) }}</span>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="100" fixed="right">
@@ -117,6 +162,12 @@
             </el-button>
           </template>
         </el-table-column>
+        <template #empty>
+          <div class="dg-empty">
+            <div class="dg-empty-title">暂无数据</div>
+            <div class="dg-empty-desc">尝试调整筛选条件或抓取新数据</div>
+          </div>
+        </template>
       </el-table>
 
       <!-- 分页 -->
@@ -167,15 +218,16 @@
 
         <div v-if="currentItem.tags?.length" class="section">
           <div class="section-title">标签</div>
-          <el-tag
-            v-for="t in currentItem.tags"
-            :key="t"
-            size="small"
-            effect="plain"
-            style="margin: 0 6px 6px 0"
-          >
-            {{ t }}
-          </el-tag>
+          <div class="tag-list">
+            <el-tag
+              v-for="t in currentItem.tags"
+              :key="t"
+              size="small"
+              effect="plain"
+            >
+              {{ t }}
+            </el-tag>
+          </div>
         </div>
 
         <div v-if="currentItem.summary" class="section">
@@ -194,7 +246,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Document, Search, Refresh, View } from '@element-plus/icons-vue'
+import {
+  Document, Search, Refresh, View, Filter, DataAnalysis, Reading,
+} from '@element-plus/icons-vue'
 import { listSources } from '@/api/sources'
 import { queryData } from '@/api/data'
 import type { SourceInfo, DataItem } from '@/types'
@@ -235,6 +289,11 @@ const displayItems = computed(() => {
   }
   return list
 })
+
+// 统计卡片
+const filteredCount = computed(() => displayItems.value.length)
+const zhCount = computed(() => displayItems.value.filter((i) => i.language === 'zh').length)
+const enCount = computed(() => displayItems.value.filter((i) => i.language === 'en').length)
 
 function formatTime(s: string | null) {
   if (!s) return '-'
@@ -284,20 +343,65 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* 统计卡片 */
+.stat-row {
+  margin-bottom: 0;
 }
 
-.card {
-  border-radius: 8px;
-}
-
-.card-header {
+.stat-card :deep(.el-card__body) {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.stat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--dg-radius-sm);
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.stat-icon--slate {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.stat-icon--emerald {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--dg-emerald);
+}
+
+.stat-icon--amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.stat-icon--blue {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* 主卡片 */
+.main-card :deep(.el-card__body) {
+  padding: 0;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--dg-text);
+}
+
+.card-title-icon {
+  font-size: 16px;
+  color: var(--dg-emerald);
 }
 
 .title-cell {
@@ -306,9 +410,14 @@ onMounted(async () => {
 
 .title {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--dg-text);
   display: block;
   margin-bottom: 4px;
+  transition: color var(--dg-transition);
+}
+
+.title-cell:hover .title {
+  color: var(--dg-emerald-dark);
 }
 
 .meta {
@@ -319,43 +428,48 @@ onMounted(async () => {
 }
 
 .time {
-  color: #6b7280;
+  color: var(--dg-text-muted);
   font-size: 12px;
-}
-
-.muted {
-  color: #6b7280;
 }
 
 .pagination {
   display: flex;
   justify-content: flex-end;
-  margin-top: 16px;
+  padding: 16px 20px;
 }
 
+/* 详情抽屉 */
 .detail {
   padding: 0 4px;
 }
 
 .section {
-  margin-top: 20px;
+  margin-top: 24px;
 }
 
 .section-title {
   font-weight: 600;
-  margin-bottom: 8px;
-  color: #1f2937;
-  border-left: 3px solid #2563eb;
-  padding-left: 8px;
+  margin-bottom: 10px;
+  color: var(--dg-text);
+  border-left: 3px solid var(--dg-emerald);
+  padding-left: 10px;
+  font-size: 14px;
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .content-text {
   white-space: pre-wrap;
-  line-height: 1.7;
-  color: #374151;
-  background: #f9fafb;
-  padding: 12px;
-  border-radius: 6px;
+  line-height: 1.8;
+  color: var(--dg-text);
+  background: var(--dg-bg);
+  padding: 16px 18px;
+  border-radius: var(--dg-radius-sm);
+  border-left: 3px solid var(--dg-emerald);
   max-height: 360px;
   overflow-y: auto;
   font-size: 14px;
