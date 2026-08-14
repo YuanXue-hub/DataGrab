@@ -128,58 +128,27 @@
       </el-form>
 
       <el-alert
-        type="info"
+        type="success"
         :closable="false"
         show-icon
-        title="JSON 直接在浏览器下载；CSV/Word 由后端写入 output/ 目录，返回文件路径。"
+        title="所有格式均通过浏览器直接下载到本地，不写入服务器目录。"
       />
     </el-card>
 
-    <!-- 导出结果展示 -->
-    <el-card v-if="lastResult" shadow="never">
+    <!-- JSON 预览（仅 JSON 格式且已导出） -->
+    <el-card v-if="lastJsonPreview" shadow="never">
       <template #header>
         <div class="dg-card-header">
           <span class="card-title">
-            <el-icon class="card-title-icon"><CircleCheck /></el-icon>
-            最近一次导出
+            <el-icon class="card-title-icon"><Document /></el-icon>
+            JSON 预览（前 50 条）
           </span>
-          <el-tag :type="lastResult.success ? 'success' : 'danger'" size="small" effect="dark">
-            {{ lastResult.success ? '成功' : '失败' }}
-          </el-tag>
-        </div>
-      </template>
-
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="格式">
-          {{ lastResult.format?.toUpperCase() }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="lastResult.file_path" label="文件路径">
-          <code class="path">{{ lastResult.file_path }}</code>
-        </el-descriptions-item>
-        <el-descriptions-item v-if="lastResult.message" label="说明">
-          {{ lastResult.message }}
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <div v-if="lastResult.format === 'json' && lastResult.content" class="json-section">
-        <div class="result-actions">
-          <span class="result-label">JSON 预览（前 50 条）</span>
-          <el-button type="primary" size="small" :icon="Download" @click="downloadJson">
-            下载 JSON 文件
+          <el-button type="primary" size="small" :icon="Download" @click="redownloadLast">
+            重新下载
           </el-button>
         </div>
-        <pre class="json-preview">{{ jsonPreview }}</pre>
-      </div>
-
-      <div v-if="lastResult.format === 'csv' || lastResult.format === 'docx'" class="file-alert">
-        <el-alert
-          type="warning"
-          :closable="false"
-          show-icon
-          :title="`${lastResult.format.toUpperCase()} 文件已生成于后端服务器：${lastResult.file_path}`"
-          description="如需下载，请通过 SSH 或文件共享访问后端 output/ 目录。"
-        />
-      </div>
+      </template>
+      <pre class="json-preview">{{ lastJsonPreview }}</pre>
     </el-card>
 
     <!-- 历史导出记录 -->
@@ -206,7 +175,7 @@
               {{ h.format?.toUpperCase() }}
             </span>
             <span class="hist-source">{{ h.source_name || '全部数据源' }}</span>
-            <span class="hist-meta">{{ h.message || (h.success ? '成功' : '失败') }}</span>
+            <span class="hist-meta">{{ h.message }}</span>
           </div>
         </el-timeline-item>
       </el-timeline>
@@ -226,15 +195,17 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  Upload, Download, Document, Grid, CircleCheck, Clock, Delete, Notebook, Select,
+  Upload, Download, Document, Grid, Clock, Delete, Notebook, Select,
 } from '@element-plus/icons-vue'
 import { listSources } from '@/api/sources'
 import { exportData } from '@/api/export'
-import type { SourceInfo, ExportResponse, ExportFormat } from '@/types'
+import type { SourceInfo, ExportFormat } from '@/types'
 
 const sources = ref<SourceInfo[]>([])
 const exporting = ref(false)
-const lastResult = ref<ExportResponse | null>(null)
+const lastJsonPreview = ref('')
+const lastBlob = ref<Blob | null>(null)
+const lastFilename = ref('')
 
 const form = reactive({
   source_name: '',
@@ -247,15 +218,14 @@ interface HistoryItem {
   format: ExportFormat
   source_name: string
   success: boolean
-  message?: string | null
-  file_path?: string | null
+  message: string
 }
 const history = ref<HistoryItem[]>([])
 
 const formatOptions: { value: ExportFormat; label: string; desc: string; icon: any }[] = [
-  { value: 'json', label: 'JSON', desc: '浏览器直接下载', icon: Document },
+  { value: 'json', label: 'JSON', desc: '结构化数据', icon: Document },
   { value: 'csv', label: 'CSV', desc: '表格文件', icon: Grid },
-  { value: 'docx', label: 'Word', desc: '文档文件', icon: Notebook },
+  { value: 'docx', label: 'Word', desc: '文档报告', icon: Notebook },
 ]
 
 // 统计卡片
@@ -264,18 +234,6 @@ const jsonCount = computed(() => history.value.filter((h) => h.format === 'json'
 const csvCount = computed(() => history.value.filter((h) => h.format === 'csv').length)
 const docxCount = computed(() => history.value.filter((h) => h.format === 'docx').length)
 
-// JSON 预览（前 50 条）
-const jsonPreview = computed(() => {
-  if (!lastResult.value?.content) return ''
-  try {
-    const arr = JSON.parse(lastResult.value.content)
-    const head = Array.isArray(arr) ? arr.slice(0, 50) : arr
-    return JSON.stringify(head, null, 2)
-  } catch {
-    return lastResult.value.content
-  }
-})
-
 async function loadSources() {
   sources.value = await listSources()
 }
@@ -283,46 +241,72 @@ async function loadSources() {
 async function onExport() {
   exporting.value = true
   try {
-    const res = await exportData({
+    const result = await exportData({
       format: form.format,
       source_name: form.source_name || undefined,
       limit: form.limit,
     })
-    lastResult.value = res
+
+    // 触发浏览器下载
+    triggerDownload(result.blob, result.filename)
+
+    // JSON 格式额外保存用于预览
+    if (result.format === 'json') {
+      const text = await result.blob.text()
+      lastBlob.value = result.blob
+      lastFilename.value = result.filename
+      try {
+        const arr = JSON.parse(text)
+        const head = Array.isArray(arr) ? arr.slice(0, 50) : arr
+        lastJsonPreview.value = JSON.stringify(head, null, 2)
+      } catch {
+        lastJsonPreview.value = text.slice(0, 5000)
+      }
+    } else {
+      lastJsonPreview.value = ''
+      lastBlob.value = null
+      lastFilename.value = ''
+    }
+
+    const msg = `已下载 ${result.count} 条数据 → ${result.filename}`
     history.value.unshift({
       time: new Date().toLocaleString('zh-CN'),
-      format: res.format,
+      format: result.format,
       source_name: form.source_name,
-      success: res.success,
-      message: res.message,
-      file_path: res.file_path,
+      success: true,
+      message: msg,
     })
-    if (res.success) {
-      if (res.format === 'json') {
-        ElMessage.success(`已导出 ${JSON.parse(res.content || '[]').length} 条 JSON 数据`)
-      } else {
-        ElMessage.success(`${res.format.toUpperCase()} 已生成: ${res.file_path}`)
-      }
-    }
+    ElMessage.success(msg)
+  } catch {
+    // 错误已在 exportData 中处理
+    history.value.unshift({
+      time: new Date().toLocaleString('zh-CN'),
+      format: form.format,
+      source_name: form.source_name,
+      success: false,
+      message: '导出失败',
+    })
   } finally {
     exporting.value = false
   }
 }
 
-function downloadJson() {
-  if (!lastResult.value?.content) return
-  const blob = new Blob([lastResult.value.content], {
-    type: 'application/json;charset=utf-8',
-  })
+function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  a.download = `datagrab_export_${ts}.json`
+  a.download = filename
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
+}
+
+function redownloadLast() {
+  if (lastBlob.value && lastFilename.value) {
+    triggerDownload(lastBlob.value, lastFilename.value)
+    ElMessage.success('已重新下载')
+  }
 }
 
 onMounted(loadSources)
@@ -459,35 +443,7 @@ onMounted(loadSources)
   margin-top: 2px;
 }
 
-/* 文件路径 */
-.path {
-  font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-  background: var(--dg-bg);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #dc2626;
-  word-break: break-all;
-}
-
 /* JSON 预览 */
-.json-section {
-  margin-top: 20px;
-}
-
-.result-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.result-label {
-  font-weight: 600;
-  color: var(--dg-text);
-  font-size: 14px;
-}
-
 .json-preview {
   background: #0f172a;
   color: #e2e8f0;
@@ -500,10 +456,6 @@ onMounted(loadSources)
   overflow: auto;
   margin: 0;
   border: 1px solid #1e293b;
-}
-
-.file-alert {
-  margin-top: 16px;
 }
 
 /* 历史记录 */
