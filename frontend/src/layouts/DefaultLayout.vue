@@ -3,8 +3,8 @@
     <!-- 侧边栏 -->
     <el-aside :width="collapsed ? '64px' : '220px'" class="sidebar">
       <div class="logo">
+        <img src="/datagrab-logo.jpg" alt="DataGrab" class="logo-img" />
         <span v-if="!collapsed" class="logo-text">DataGrab</span>
-        <span v-else class="logo-mini">DG</span>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -83,15 +83,25 @@ const currentTitle = computed(
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   color: #fff;
   font-weight: 700;
   font-size: 20px;
   border-bottom: 1px solid #374151;
+  padding: 0 12px;
+  overflow: hidden;
 }
 
-.logo-mini {
-  font-size: 22px;
-  color: #60a5fa;
+.logo-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  white-space: nowrap;
 }
 
 .sidebar :deep(.el-menu) {
