@@ -6,6 +6,7 @@ GET /api/export — 导出数据为 JSON / CSV / DOCX，全部通过浏览器下
 import csv
 import io
 import json as json_mod
+import logging
 import os
 import tempfile
 from datetime import datetime
@@ -17,6 +18,7 @@ from fastapi.responses import Response
 from storage.database import grab_list, grab_count
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _rows_to_items(rows: List[dict]):
@@ -65,9 +67,16 @@ def api_export_data(
     """
     total = grab_count(source_name=source_name)
     if total == 0:
-        raise HTTPException(status_code=404, detail="No data to export")
+        if source_name:
+            detail = f"No data to export for source '{source_name}'"
+            logger.warning(f"[EXPORT] 跳过：数据源「{source_name}」下没有抓取记录")
+        else:
+            detail = "No data to export — grab table is empty across all sources"
+            logger.warning("[EXPORT] 跳过：grab 表中没有任何抓取记录")
+        raise HTTPException(status_code=404, detail=detail)
 
     rows = grab_list(source_name=source_name, limit=limit, offset=0)
+    logger.info(f"[EXPORT] format={format} source={source_name or 'ALL'} limit={limit}, 命中 {len(rows)} 条")
 
     # 解析 JSON / datetime 字段为可序列化结构
     items = []

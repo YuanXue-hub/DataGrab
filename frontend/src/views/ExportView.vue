@@ -240,6 +240,7 @@ async function loadSources() {
 
 async function onExport() {
   exporting.value = true
+  let errMsg = ''
   try {
     const result = await exportData({
       format: form.format,
@@ -247,8 +248,11 @@ async function onExport() {
       limit: form.limit,
     })
 
-    // 触发浏览器下载
-    triggerDownload(result.blob, result.filename)
+    // 触发浏览器下载（兼容 Safari / iOS / 移动端浏览器）
+    const ok = triggerDownload(result.blob, result.filename)
+    if (!ok) {
+      ElMessage.warning('浏览器拦截了自动下载，请在地址栏允许弹窗后重试，或右键另存为下载')
+    }
 
     // JSON 格式额外保存用于预览
     if (result.format === 'json') {
@@ -268,7 +272,9 @@ async function onExport() {
       lastFilename.value = ''
     }
 
-    const msg = `已下载 ${result.count} 条数据 → ${result.filename}`
+    const msg = ok
+      ? `已下载 ${result.count} 条数据 → ${result.filename}`
+      : `已生成 ${result.count} 条数据，浏览器已拦截下载，请手动保存`
     history.value.unshift({
       time: new Date().toLocaleString('zh-CN'),
       format: result.format,
@@ -276,30 +282,85 @@ async function onExport() {
       success: true,
       message: msg,
     })
-    ElMessage.success(msg)
-  } catch {
-    // 错误已在 exportData 中处理
+    if (ok) ElMessage.success(msg)
+  } catch (err: any) {
+    // 提取具体错误信息（exportData 内部已弹过 ElMessage）
+    errMsg = '导出失败'
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const txt = await err.response.data.text()
+        const parsed = JSON.parse(txt)
+        if (parsed.detail) {
+          if (/no data to export/i.test(parsed.detail)) {
+            const src = form.source_name ? `「${form.source_name}」` : '全部数据源'
+            errMsg = `${src} 暂无数据，请先爬取`
+          } else {
+            errMsg = parsed.detail
+          }
+        }
+      } catch { /* ignore */ }
+    } else if (err?.message) {
+      if (err.code === 'ECONNABORTED') errMsg = '超时，建议减少条数'
+      else errMsg = err.message.length > 40 ? err.message.slice(0, 40) + '…' : err.message
+    }
     history.value.unshift({
       time: new Date().toLocaleString('zh-CN'),
       format: form.format,
       source_name: form.source_name,
       success: false,
-      message: '导出失败',
+      message: errMsg,
     })
   } finally {
     exporting.value = false
   }
 }
 
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+/**
+ * 触发浏览器下载，返回是否成功。
+ * 兼容：Chrome / Edge / Firefox / Safari / iOS Safari / Electron
+ */
+function triggerDownload(blob: Blob, filename: string): boolean {
+  // 优先使用浏览器内置下载能力（Safari / IE11 / Edge Legacy）
+  const nav = (navigator as any)
+  if (nav?.msSaveOrOpenBlob) {
+    try {
+      nav.msSaveOrOpenBlob(blob, filename)
+      return true
+    } catch { /* fallthrough */ }
+  }
+  if (nav?.msSaveBlob) {
+    try {
+      nav.msSaveBlob(blob, filename)
+      return true
+    } catch { /* fallthrough */ }
+  }
+
+  try {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.rel = 'noopener'
+    // 部分浏览器需要元素可见才能触发 click
+    a.style.position = 'fixed'
+    a.style.left = '-9999px'
+    a.style.top = '0'
+    a.style.opacity = '0'
+    document.body.appendChild(a)
+    // 用真实鼠标事件触发，提升兼容性
+    const evt = document.createEvent('MouseEvents')
+    evt.initMouseEvent('click', true, false, window, 0, 0, 0, 0, 0,
+      false, false, false, false, 0, null)
+    const ok = a.dispatchEvent(evt)
+    setTimeout(() => {
+      try { document.body.removeChild(a) } catch { /* ignore */ }
+      try { URL.revokeObjectURL(url) } catch { /* ignore */ }
+    }, 100)
+    return ok !== false
+  } catch (e) {
+    console.error('[triggerDownload] 下载失败:', e)
+    return false
+  }
 }
 
 function redownloadLast() {
