@@ -71,6 +71,7 @@ export interface PreviewResponse {
     valid: number
     passed: boolean
   }
+  failure_reasons: string[]
   elapsed_ms: number
 }
 

@@ -271,27 +271,42 @@ def detect_selectors(url: str) -> Optional[dict]:
     Returns:
         selectors 字典；检测失败返回 None
     """
+    selectors, _ = detect_selectors_with_reason(url)
+    return selectors
+
+
+def detect_selectors_with_reason(url: str) -> tuple:
+    """自动检测选择器，并返回失败原因（供预览接口展示）。
+
+    Args:
+        url: 列表页网址
+
+    Returns:
+        (selectors, failure_reason): selectors 为 dict 或 None；
+        failure_reason 为失败原因字符串（成功时为空）
+    """
     logger.info(f"Auto-detecting selectors for {url}")
     try:
         resp = httpx.get(url, headers=_HEADERS, timeout=15, follow_redirects=True)
         if resp.status_code != 200:
-            return None
+            return None, f"列表页请求失败（HTTP {resp.status_code}）"
         soup = BeautifulSoup(resp.text, "lxml")
     except Exception as e:
         logger.warning(f"Detection fetch failed: {e}")
-        return None
+        return None, f"列表页抓取异常: {e}"
 
     # 1. 找文章链接
     links = _find_article_links(soup, url)
     if len(links) < 3:
-        logger.warning(f"Only found {len(links)} article links, detection failed")
-        return None
+        return None, (
+            f"页面上仅找到 {len(links)} 个文章链接（至少需要 3 个），"
+            "可能页面结构非标准新闻列表或为 JS 渲染"
+        )
 
     # 2. 找容器
     container = _detect_container(soup, links, url)
     if not container:
-        logger.warning("No suitable container found")
-        return None
+        return None, "未找到包含足够文章链接的容器元素，无法定位列表区域"
 
     # 3. 标题选择器
     title_sel = _detect_title_selector(soup, container)
@@ -319,11 +334,16 @@ def detect_selectors(url: str) -> Optional[dict]:
     # 5. 试抓取验证：用检测出的 selectors 实际抓取前 3 条，校验有效性
     validation = validate_selectors(url, selectors, sample_size=3, html=resp.text)
     if not validation["passed"]:
+        reasons = validation.get("reasons", [])
+        reason_text = "；".join(reasons) if reasons else (
+            f"试抓取验证未通过（有效 {validation['valid_count']}/{validation['total_count']}，"
+            f"要求有效比例 ≥ 60% 且总数 ≥ 2）"
+        )
         logger.info(
             f"Selectors validation failed: valid={validation['valid_count']}/"
             f"{validation['total_count']}, fallback to None"
         )
-        return None
+        return None, reason_text
 
     # 6. JS 渲染检测：抓取首个样本详情页，正文过短或 noscript 提示则标记
     if validation["samples"]:
@@ -339,7 +359,7 @@ def detect_selectors(url: str) -> Optional[dict]:
         f"Selectors validated: valid={validation['valid_count']}/"
         f"{validation['total_count']}, js_rendered={selectors['js_rendered']}"
     )
-    return selectors
+    return selectors, ""
 
 
 def validate_selectors(
@@ -367,11 +387,16 @@ def validate_selectors(
             "total_count": int,      # 实际抓取到的条数
             "samples": [{"title", "url", "summary"}],
             "passed": bool,          # total>=2 且 valid/total >= 0.6
+            "reasons": [str],        # 失败原因列表（空列表表示无失败）
         }
     """
-    result = {"valid_count": 0, "total_count": 0, "samples": [], "passed": False}
+    result = {
+        "valid_count": 0, "total_count": 0, "samples": [],
+        "passed": False, "reasons": [],
+    }
 
     if not selectors or not selectors.get("article_selector"):
+        result["reasons"].append("article_selector 未配置")
         return result
 
     # 抓取列表页 HTML（如未提供）
@@ -379,10 +404,12 @@ def validate_selectors(
         try:
             r = httpx.get(url, headers=_HEADERS, timeout=15, follow_redirects=True)
             if r.status_code != 200:
+                result["reasons"].append(f"列表页请求失败（HTTP {r.status_code}）")
                 return result
             html = r.text
         except Exception as e:
             logger.warning(f"validate_selectors fetch failed: {e}")
+            result["reasons"].append(f"列表页抓取异常: {e}")
             return result
 
     soup = BeautifulSoup(html, "lxml")
@@ -395,10 +422,17 @@ def validate_selectors(
 
     containers = soup.select(article_sel)
     if not containers:
+        result["reasons"].append(
+            f'article_selector "{article_sel}" 在列表页未匹配到任何元素'
+        )
         return result
 
     samples = []
     valid_count = 0
+    skip_no_title = 0
+    skip_no_link = 0
+    skip_link_filter = 0
+    invalid_link = 0
 
     for container in containers:
         if len(samples) >= sample_size:
@@ -410,6 +444,8 @@ def validate_selectors(
                 continue
             title = title_el.get_text(strip=True)
             if not title or len(title) < 6:
+                if title:
+                    skip_no_title += 1
                 continue
 
             link = ""
@@ -417,8 +453,12 @@ def validate_selectors(
             if link_el and link_el.get("href"):
                 href = link_el["href"]
                 if link_filter and link_filter not in href:
+                    skip_link_filter += 1
                     continue
                 link = urljoin(url, href) if href.startswith("/") else href
+
+            if not link:
+                skip_no_link += 1
 
             summary = ""
             if summary_sel:
@@ -433,6 +473,8 @@ def validate_selectors(
                 # _is_article_link 同时校验同域 + URL 特征
                 if _is_article_link(link, title, url):
                     is_valid = True
+                else:
+                    invalid_link += 1
 
             samples.append({"title": title, "url": link, "summary": summary})
             if is_valid:
@@ -443,11 +485,44 @@ def validate_selectors(
     total = len(samples)
     passed = total >= 2 and valid_count / max(total, 1) >= 0.6
 
+    # 收集失败原因
+    if not passed:
+        if total == 0:
+            if skip_no_title:
+                result["reasons"].append(
+                    f'title_selector "{title_sel}" 匹配到的标题均短于 6 字（{skip_no_title} 条），'
+                    "标题可能不在该元素内"
+                )
+            if skip_no_link:
+                result["reasons"].append(
+                    f'link_selector "{link_sel}" 未匹配到带 href 的链接元素'
+                )
+            if skip_link_filter:
+                result["reasons"].append(
+                    f'link_filter "{link_filter}" 过滤掉了 {skip_link_filter} 条链接'
+                )
+            if not result["reasons"]:
+                result["reasons"].append("未抓取到任何样本，选择器可能不匹配页面结构")
+        else:
+            if invalid_link:
+                result["reasons"].append(
+                    f"{invalid_link} 条链接未通过校验（不同域或 URL 不含文章特征）"
+                )
+            if total < 2:
+                result["reasons"].append(
+                    f"仅抓取到 {total} 条样本（要求 ≥ 2 条）"
+                )
+            if valid_count / max(total, 1) < 0.6:
+                result["reasons"].append(
+                    f"有效比例 {valid_count}/{total} 低于 60% 阈值"
+                )
+
     return {
         "valid_count": valid_count,
         "total_count": total,
         "samples": samples,
         "passed": passed,
+        "reasons": result["reasons"],
     }
 
 

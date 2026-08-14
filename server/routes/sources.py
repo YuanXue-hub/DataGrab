@@ -233,12 +233,13 @@ def api_preview_source(body: PreviewRequest):
     - URL + selectors：跳过检测，直接用传入选择器试抓
 
     返回 samples 包含标题、链接、摘要、正文前 200 字、正文长度、发布时间。
+    验证失败时返回 failure_reasons 列表，帮助用户定位选择器问题。
     """
     import time
     import httpx
     from urllib.parse import urlparse
     from scrapers.selector_presets import get_selectors, PRESETS
-    from scrapers.selector_detector import detect_selectors, validate_selectors
+    from scrapers.selector_detector import detect_selectors_with_reason, validate_selectors
     from scrapers.content_extractor import extract_content, extract_date
 
     start = time.monotonic()
@@ -246,12 +247,13 @@ def api_preview_source(body: PreviewRequest):
     sample_size = body.sample_size
 
     # ── 1. 确定 selectors 和 selector_source ──
+    detect_reason = ""  # detector 失败原因（仅 URL 模式）
     if body.selectors:
         selectors = dict(body.selectors)
         selector_source = "manual"
     else:
         try:
-            detected = detect_selectors(url)
+            detected, detect_reason = detect_selectors_with_reason(url)
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"detect_selectors failed: {e}")
 
@@ -307,6 +309,19 @@ def api_preview_source(body: PreviewRequest):
         if short_count >= max(len(samples) // 2, 1):
             js_rendered = True
 
+    # ── 5. 汇总失败原因 ──
+    failure_reasons = []
+    # detector 失败原因（仅 URL 模式且 detector 未命中时）
+    if detect_reason and selector_source != "detector":
+        failure_reasons.append(f"自动检测失败：{detect_reason}")
+        if selector_source == "preset":
+            failure_reasons.append(f"已回退到预设模板（{urlparse(url).hostname}）")
+        elif selector_source == "fallback":
+            failure_reasons.append("已回退到通用兜底选择器，效果可能不佳")
+    # 验证失败原因
+    if not validation["passed"]:
+        failure_reasons.extend(validation.get("reasons", []))
+
     elapsed_ms = round((time.monotonic() - start) * 1000)
 
     return {
@@ -321,5 +336,6 @@ def api_preview_source(body: PreviewRequest):
             "valid": validation["valid_count"],
             "passed": validation["passed"],
         },
+        "failure_reasons": failure_reasons,
         "elapsed_ms": elapsed_ms,
     }

@@ -279,6 +279,25 @@
                 </div>
               </div>
             </div>
+
+            <div v-if="previewResult.failure_reasons.length" class="config-section">
+              <div class="config-label">
+                失败原因
+                <span class="config-hint">（参考以下原因调整选择器）</span>
+              </div>
+              <el-alert
+                type="error"
+                :closable="false"
+                show-icon
+                class="reasons-alert"
+              >
+                <template #title>
+                  <ul class="reason-list">
+                    <li v-for="(r, i) in previewResult.failure_reasons" :key="i">{{ r }}</li>
+                  </ul>
+                </template>
+              </el-alert>
+            </div>
           </div>
         </div>
       </div>
@@ -537,7 +556,9 @@ async function runPreview(url: string, selectors?: Record<string, string> | null
     if (res.validation.passed) {
       ElMessage.success(`验证通过 ${res.validation.valid}/${res.validation.total}（${res.elapsed_ms}ms）`)
     } else if (res.samples.length > 0) {
-      ElMessage.warning(`验证未通过 ${res.validation.valid}/${res.validation.total}`)
+      ElMessage.warning(`验证未通过 ${res.validation.valid}/${res.validation.total}，请查看失败原因`)
+    } else if (res.failure_reasons.length) {
+      ElMessage.warning(`未抓取到样本：${res.failure_reasons[0]}`)
     } else {
       ElMessage.warning('未抓取到样本，请检查选择器')
     }
@@ -762,5 +783,27 @@ onMounted(loadSources)
 
 .danger-text {
   color: #ef4444;
+}
+
+.config-hint {
+  font-size: 12px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-left: 4px;
+}
+
+.reasons-alert {
+  margin-top: 4px;
+}
+
+.reason-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+.reason-list li {
+  word-break: break-all;
 }
 </style>
