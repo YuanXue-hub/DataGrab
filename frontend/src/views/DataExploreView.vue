@@ -372,18 +372,18 @@ onMounted(async () => {
 }
 
 .stat-icon--emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--dg-emerald);
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--dg-cyan);
 }
 
 .stat-icon--amber {
   background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: var(--dg-warning);
 }
 
 .stat-icon--blue {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: var(--dg-blue);
 }
 
 /* 主卡片 */
@@ -396,12 +396,12 @@ onMounted(async () => {
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .card-title-icon {
   font-size: 16px;
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 .title-cell {
@@ -410,14 +410,14 @@ onMounted(async () => {
 
 .title {
   font-weight: 600;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   display: block;
   margin-bottom: 4px;
   transition: color var(--dg-transition);
 }
 
 .title-cell:hover .title {
-  color: var(--dg-emerald-dark);
+  color: var(--dg-cyan-dim);
 }
 
 .meta {
@@ -450,8 +450,8 @@ onMounted(async () => {
 .section-title {
   font-weight: 600;
   margin-bottom: 10px;
-  color: var(--dg-text);
-  border-left: 3px solid var(--dg-emerald);
+  color: var(--dg-text-bright);
+  border-left: 3px solid var(--dg-cyan);
   padding-left: 10px;
   font-size: 14px;
 }
@@ -465,11 +465,11 @@ onMounted(async () => {
 .content-text {
   white-space: pre-wrap;
   line-height: 1.8;
-  color: var(--dg-text);
+  color: var(--dg-text-secondary);
   background: var(--dg-bg);
   padding: 16px 18px;
   border-radius: var(--dg-radius-sm);
-  border-left: 3px solid var(--dg-emerald);
+  border-left: 3px solid var(--dg-cyan);
   max-height: 360px;
   overflow-y: auto;
   font-size: 14px;

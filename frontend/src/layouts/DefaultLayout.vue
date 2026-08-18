@@ -23,6 +23,10 @@
         </RouterLink>
       </nav>
       <div v-if="!collapsed" class="sidebar-footer">
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text">System Online</span>
+        </div>
         <div class="version-tag">v1.0.0</div>
       </div>
     </el-aside>
@@ -72,10 +76,10 @@ const route = useRoute()
 const collapsed = ref(false)
 
 const menuItems = [
-  { path: '/sources', title: '数据源管理', icon: 'Connection' },
-  { path: '/scrape', title: '爬取任务', icon: 'Download' },
-  { path: '/data', title: '数据查看', icon: 'Document' },
-  { path: '/export', title: '数据导出', icon: 'Upload' },
+  { path: '/app/sources', title: '数据源管理', icon: 'Connection' },
+  { path: '/app/scrape', title: '爬取任务', icon: 'Download' },
+  { path: '/app/data', title: '数据查看', icon: 'Document' },
+  { path: '/app/export', title: '数据导出', icon: 'Upload' },
 ]
 
 const activeMenu = computed(() => route.path)
@@ -84,10 +88,10 @@ const currentTitle = computed(
 )
 const currentSubtitle = computed(() => {
   const map: Record<string, string> = {
-    '/sources': '管理爬虫数据源与选择器配置',
-    '/scrape': '执行爬取任务并查看历史记录',
-    '/data': '浏览与检索已采集的数据',
-    '/export': '将采集数据导出为多种格式',
+    '/app/sources': '管理爬虫数据源与选择器配置',
+    '/app/scrape': '执行爬取任务并查看历史记录',
+    '/app/data': '浏览与检索已采集的数据',
+    '/app/export': '将采集数据导出为多种格式',
   }
   return map[route.path] || '数据采集与情报分析平台'
 })
@@ -98,14 +102,30 @@ const currentSubtitle = computed(() => {
   height: 100vh;
 }
 
-/* ===== Sidebar ===== */
+/* ===== Sidebar — Deep Dark ===== */
 .sidebar {
   background-color: var(--dg-sidebar-bg);
+  background-image:
+    linear-gradient(180deg, rgba(0, 240, 255, 0.02) 0%, transparent 100%);
   transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--dg-border);
+  position: relative;
+}
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 1px;
+  height: 100%;
+  background: linear-gradient(180deg,
+    transparent,
+    rgba(0, 240, 255, 0.15) 30%,
+    rgba(0, 240, 255, 0.15) 70%,
+    transparent);
 }
 
 .logo {
@@ -114,7 +134,7 @@ const currentSubtitle = computed(() => {
   align-items: center;
   gap: 12px;
   padding: 0 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--dg-border);
   flex-shrink: 0;
 }
 .logo.collapsed {
@@ -128,14 +148,18 @@ const currentSubtitle = computed(() => {
   border-radius: 8px;
   object-fit: cover;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.25);
+  transition: box-shadow 0.3s ease;
+}
+.logo-img:hover {
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
 }
 
 .logo-text {
   font-family: 'Outfit', sans-serif;
   font-size: 19px;
   font-weight: 700;
-  color: #f8fafc;
+  color: var(--dg-text-bright);
   white-space: nowrap;
   letter-spacing: -0.02em;
 }
@@ -156,7 +180,7 @@ const currentSubtitle = computed(() => {
   gap: 12px;
   padding: 10px 14px;
   border-radius: 10px;
-  color: var(--dg-text-light-muted);
+  color: var(--dg-text-muted);
   font-size: 14px;
   font-weight: 500;
   transition: all 180ms ease;
@@ -165,11 +189,12 @@ const currentSubtitle = computed(() => {
 }
 .nav-item:hover {
   background: var(--dg-sidebar-hover);
-  color: var(--dg-text-light);
+  color: var(--dg-cyan);
 }
 .nav-item.active {
   background: var(--dg-sidebar-active);
-  color: var(--dg-emerald-light);
+  color: var(--dg-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
 }
 .nav-item.active::before {
   content: '';
@@ -179,8 +204,9 @@ const currentSubtitle = computed(() => {
   transform: translateY(-50%);
   width: 3px;
   height: 20px;
-  background: var(--dg-emerald);
+  background: var(--dg-cyan);
   border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
 }
 
 .nav-icon {
@@ -194,11 +220,34 @@ const currentSubtitle = computed(() => {
 
 .sidebar-footer {
   padding: 16px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--dg-border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--dg-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dg-success);
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 .version-tag {
   font-size: 12px;
-  color: var(--dg-text-light-muted);
+  color: var(--dg-text-dim);
   font-family: 'JetBrains Mono', monospace;
 }
 
@@ -208,9 +257,11 @@ const currentSubtitle = computed(() => {
   align-items: center;
   justify-content: space-between;
   background: var(--dg-surface);
+  background-image: linear-gradient(180deg, rgba(0, 240, 255, 0.02), transparent);
   border-bottom: 1px solid var(--dg-border);
   padding: 0 24px;
   height: 64px;
+  backdrop-filter: blur(12px);
 }
 
 .header-left {
@@ -227,15 +278,16 @@ const currentSubtitle = computed(() => {
   height: 36px;
   border: 1px solid var(--dg-border);
   border-radius: 8px;
-  background: var(--dg-surface);
+  background: var(--dg-surface-2);
   cursor: pointer;
   color: var(--dg-text-secondary);
   transition: all 180ms ease;
 }
 .collapse-btn:hover {
-  background: var(--dg-bg);
-  color: var(--dg-emerald);
-  border-color: var(--dg-emerald-light);
+  background: var(--dg-sidebar-hover);
+  color: var(--dg-cyan);
+  border-color: var(--dg-cyan-dim);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
 }
 .collapse-btn:active {
   transform: scale(0.95);
@@ -249,7 +301,7 @@ const currentSubtitle = computed(() => {
 .header-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   margin: 0;
   line-height: 1.2;
 }
@@ -274,13 +326,14 @@ const currentSubtitle = computed(() => {
   font-size: 13px;
   font-weight: 500;
   color: var(--dg-text-secondary);
+  font-family: 'JetBrains Mono', monospace;
   transition: all 180ms ease;
 }
 .api-link:hover {
-  color: var(--dg-emerald);
-  border-color: var(--dg-emerald-light);
-  background: var(--dg-emerald-light);
-  background: rgba(16, 185, 129, 0.06);
+  color: var(--dg-cyan);
+  border-color: var(--dg-cyan-dim);
+  background: var(--dg-sidebar-hover);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.1);
 }
 
 /* ===== Main ===== */

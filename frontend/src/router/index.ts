@@ -5,8 +5,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'home',
+      component: () => import('@/views/HomeView.vue'),
+    },
+    {
+      path: '/app',
       component: () => import('@/layouts/DefaultLayout.vue'),
-      redirect: '/sources',
+      redirect: '/app/sources',
       children: [
         {
           path: 'sources',
@@ -34,6 +39,11 @@ const router = createRouter({
         },
       ],
     },
+    // 兼容旧路径 /sources → /app/sources
+    { path: '/sources', redirect: '/app/sources' },
+    { path: '/scrape', redirect: '/app/scrape' },
+    { path: '/data', redirect: '/app/data' },
+    { path: '/export', redirect: '/app/export' },
   ],
 })
 

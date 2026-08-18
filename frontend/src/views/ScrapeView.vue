@@ -505,18 +505,18 @@ onUnmounted(stopPolling)
 }
 
 .stat-icon--emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--dg-emerald);
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--dg-cyan);
 }
 
 .stat-icon--amber {
   background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: var(--dg-warning);
 }
 
 .stat-icon--red {
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: var(--dg-danger);
 }
 
 /* 触发卡片 */
@@ -525,12 +525,12 @@ onUnmounted(stopPolling)
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .card-title-icon {
   font-size: 16px;
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 .trigger-actions {
@@ -565,7 +565,7 @@ onUnmounted(stopPolling)
 
 .num {
   font-weight: 600;
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 .pagination {
@@ -600,7 +600,7 @@ onUnmounted(stopPolling)
 }
 
 .result-meta b {
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
   font-size: 15px;
   font-weight: 600;
 }
@@ -635,19 +635,19 @@ onUnmounted(stopPolling)
 .result-title {
   font-size: 15px;
   font-weight: 600;
-  color: var(--dg-emerald-dark);
+  color: var(--dg-cyan-dim);
   text-decoration: none;
   word-break: break-all;
   line-height: 1.4;
 }
 
 .result-title:hover {
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
   text-decoration: underline;
 }
 
 .result-title--plain {
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .result-summary {

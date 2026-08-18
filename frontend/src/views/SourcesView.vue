@@ -671,23 +671,23 @@ onMounted(loadSources)
 }
 
 .stat-icon--emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--dg-emerald);
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--dg-cyan);
 }
 
 .stat-icon--green {
   background: rgba(16, 185, 129, 0.1);
-  color: var(--dg-emerald-dark);
+  color: var(--dg-success);
 }
 
 .stat-icon--blue {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: var(--dg-blue);
 }
 
 .stat-icon--amber {
   background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: var(--dg-warning);
 }
 
 /* 主卡片 */
@@ -697,7 +697,7 @@ onMounted(loadSources)
 
 .source-name {
   font-weight: 600;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 /* 高级配置折叠区 */
@@ -746,21 +746,22 @@ onMounted(loadSources)
 .preview-title {
   margin: 0;
   font-size: 16px;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .sample-card {
-  background: var(--dg-surface);
+  background: var(--dg-surface-2);
   border: 1px solid var(--dg-border);
   border-radius: var(--dg-radius);
   padding: 16px;
   margin-bottom: 12px;
   box-shadow: var(--dg-shadow-sm);
-  transition: box-shadow var(--dg-transition);
+  transition: all var(--dg-transition);
 }
 
 .sample-card:hover {
-  box-shadow: var(--dg-shadow-md);
+  border-color: var(--dg-border-glow);
+  box-shadow: var(--dg-shadow-md), var(--dg-glow-cyan);
 }
 
 .sample-title {
@@ -778,7 +779,7 @@ onMounted(loadSources)
 }
 
 .sample-link {
-  color: var(--dg-emerald-dark);
+  color: var(--dg-cyan-dim);
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
@@ -786,7 +787,7 @@ onMounted(loadSources)
 }
 
 .sample-link:hover {
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
   text-decoration: underline;
 }
 
@@ -836,7 +837,7 @@ onMounted(loadSources)
 .config-label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   margin-bottom: 10px;
 }
 
@@ -872,16 +873,16 @@ onMounted(loadSources)
 
 .validation-item b {
   font-size: 20px;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   font-family: 'Outfit', sans-serif;
 }
 
 .success-text {
-  color: var(--dg-emerald);
+  color: var(--dg-success);
 }
 
 .danger-text {
-  color: #ef4444;
+  color: var(--dg-danger);
 }
 
 .config-hint {

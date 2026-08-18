@@ -403,18 +403,18 @@ onMounted(loadSources)
 }
 
 .stat-icon--emerald {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--dg-emerald);
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--dg-cyan);
 }
 
 .stat-icon--amber {
   background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
+  color: var(--dg-warning);
 }
 
 .stat-icon--blue {
   background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: var(--dg-blue);
 }
 
 /* 卡片标题 */
@@ -423,12 +423,12 @@ onMounted(loadSources)
   align-items: center;
   gap: 8px;
   font-size: 15px;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .card-title-icon {
   font-size: 16px;
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 /* 导出表单 */
@@ -455,8 +455,8 @@ onMounted(loadSources)
 }
 
 .format-card:hover {
-  border-color: var(--dg-emerald-light);
-  box-shadow: var(--dg-shadow-sm);
+  border-color: var(--dg-cyan-dim);
+  box-shadow: var(--dg-shadow-sm), var(--dg-glow-cyan);
 }
 
 .format-card:active {
@@ -464,9 +464,9 @@ onMounted(loadSources)
 }
 
 .format-card.is-active {
-  border-color: var(--dg-emerald);
-  background: var(--el-color-primary-light-9);
-  box-shadow: 0 0 0 1px var(--dg-emerald) inset;
+  border-color: var(--dg-cyan);
+  background: rgba(0, 240, 255, 0.05);
+  box-shadow: 0 0 0 1px var(--dg-cyan) inset, 0 0 16px rgba(0, 240, 255, 0.1);
 }
 
 .format-card-head {
@@ -483,19 +483,19 @@ onMounted(loadSources)
 }
 
 .format-card.is-active .format-card-icon {
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 .format-card-check {
   font-size: 16px;
-  color: var(--dg-emerald);
+  color: var(--dg-cyan);
 }
 
 .format-card-name {
   font-family: 'Outfit', sans-serif;
   font-size: 16px;
   font-weight: 600;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
 }
 
 .format-card-desc {
@@ -516,7 +516,7 @@ onMounted(loadSources)
   max-height: 400px;
   overflow: auto;
   margin: 0;
-  border: 1px solid #1e293b;
+  border: 1px solid var(--dg-border);
 }
 
 /* 历史记录 */
@@ -542,7 +542,7 @@ onMounted(loadSources)
 
 .hist-format--json {
   background: rgba(16, 185, 129, 0.12);
-  color: var(--dg-emerald-dark);
+  color: var(--dg-cyan-dim);
 }
 
 .hist-format--csv {
@@ -556,7 +556,7 @@ onMounted(loadSources)
 }
 
 .hist-source {
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   font-weight: 500;
   font-size: 13px;
 }

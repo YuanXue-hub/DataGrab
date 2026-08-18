@@ -1,38 +1,44 @@
-/* ===== DataGrab Design System ===== */
-/* Fonts: Outfit for headings, system for body, JetBrains Mono for code */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* ===== DataGrab Dark Tech Design System ===== */
+/* Inspired by cyber intelligence platforms — dark, neon, glassmorphism */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  /* Brand colors */
-  --dg-emerald: #10b981;
-  --dg-emerald-light: #34d399;
-  --dg-emerald-dark: #059669;
-  --dg-navy: #0f172a;
-  --dg-navy-light: #1e293b;
+  /* Brand — Neon Cyan + Electric Blue */
+  --dg-cyan: #00f0ff;
+  --dg-cyan-dim: #00b8d4;
+  --dg-cyan-glow: rgba(0, 240, 255, 0.15);
+  --dg-blue: #3b82f6;
+  --dg-blue-dim: #2563eb;
 
-  /* Surface */
-  --dg-bg: #f8fafc;
-  --dg-surface: #ffffff;
-  --dg-sidebar-bg: #0f172a;
-  --dg-sidebar-hover: rgba(255, 255, 255, 0.06);
-  --dg-sidebar-active: rgba(16, 185, 129, 0.12);
+  /* Surface — Deep Dark Layers */
+  --dg-bg: #0a0e1a;
+  --dg-bg-2: #0d1220;
+  --dg-surface: #111827;
+  --dg-surface-2: #161e2e;
+  --dg-surface-3: #1a2333;
+  --dg-sidebar-bg: #060912;
+  --dg-sidebar-hover: rgba(0, 240, 255, 0.06);
+  --dg-sidebar-active: rgba(0, 240, 255, 0.1);
 
   /* Text */
-  --dg-text: #1e293b;
-  --dg-text-secondary: #64748b;
-  --dg-text-muted: #94a3b8;
-  --dg-text-light: #e2e8f0;
-  --dg-text-light-muted: #94a3b8;
+  --dg-text: #e2e8f0;
+  --dg-text-secondary: #94a3b8;
+  --dg-text-muted: #64748b;
+  --dg-text-dim: #475569;
+  --dg-text-bright: #f1f5f9;
 
-  /* Border */
-  --dg-border: #e2e8f0;
-  --dg-border-light: #f1f5f9;
+  /* Border — Subtle Glow Lines */
+  --dg-border: rgba(148, 163, 184, 0.12);
+  --dg-border-light: rgba(148, 163, 184, 0.06);
+  --dg-border-glow: rgba(0, 240, 255, 0.2);
 
-  /* Shadow */
-  --dg-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --dg-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --dg-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --dg-shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.10);
+  /* Shadow — Dark Depth */
+  --dg-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --dg-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --dg-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --dg-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --dg-glow-cyan: 0 0 20px rgba(0, 240, 255, 0.1);
+  --dg-glow-blue: 0 0 20px rgba(59, 130, 246, 0.1);
 
   /* Radius */
   --dg-radius: 12px;
@@ -42,14 +48,34 @@
   /* Transition */
   --dg-transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Override Element Plus primary color to emerald */
-  --el-color-primary: #10b981;
-  --el-color-primary-light-3: #34d399;
-  --el-color-primary-light-5: #6ee7b7;
-  --el-color-primary-light-7: #a7f3d0;
-  --el-color-primary-light-8: #d1fae5;
-  --el-color-primary-light-9: #ecfdf5;
-  --el-color-primary-dark-2: #059669;
+  /* Status Colors */
+  --dg-success: #10b981;
+  --dg-warning: #f59e0b;
+  --dg-danger: #ef4444;
+  --dg-info: #00f0ff;
+
+  /* Override Element Plus — Dark Theme */
+  --el-color-primary: #00f0ff;
+  --el-color-primary-light-3: #33f3ff;
+  --el-color-primary-light-5: #66f6ff;
+  --el-color-primary-light-7: #99f9ff;
+  --el-color-primary-light-8: #1a3a4a;
+  --el-color-primary-light-9: #0d2030;
+  --el-color-primary-dark-2: #00b8d4;
+  --el-bg-color: #111827;
+  --el-bg-color-page: #0a0e1a;
+  --el-bg-color-overlay: #1a2333;
+  --el-text-color-primary: #e2e8f0;
+  --el-text-color-regular: #94a3b8;
+  --el-text-color-secondary: #64748b;
+  --el-text-color-placeholder: #475569;
+  --el-border-color: rgba(148, 163, 184, 0.12);
+  --el-border-color-light: rgba(148, 163, 184, 0.08);
+  --el-border-color-lighter: rgba(148, 163, 184, 0.06);
+  --el-fill-color: rgba(148, 163, 184, 0.06);
+  --el-fill-color-light: rgba(148, 163, 184, 0.04);
+  --el-fill-color-blank: transparent;
+  --el-mask-color: rgba(10, 14, 26, 0.8);
 }
 
 * {
@@ -66,6 +92,9 @@ body,
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   color: var(--dg-text);
   background-color: var(--dg-bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 240, 255, 0.04), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(59, 130, 246, 0.03), transparent);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -85,7 +114,7 @@ code, pre {
   font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
 }
 
-/* ===== Scrollbar ===== */
+/* ===== Scrollbar — Dark ===== */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -94,27 +123,30 @@ code, pre {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: rgba(0, 240, 255, 0.15);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: rgba(0, 240, 255, 0.3);
 }
 
-/* ===== Element Plus Component Overrides ===== */
+/* ===== Element Plus Dark Overrides ===== */
 
-/* Card */
+/* Card — Glassmorphism */
 .el-card {
-  border: 1px solid var(--dg-border);
+  background: var(--dg-surface) !important;
+  border: 1px solid var(--dg-border) !important;
   border-radius: var(--dg-radius) !important;
   box-shadow: var(--dg-shadow-sm) !important;
-  transition: box-shadow var(--dg-transition);
+  transition: all var(--dg-transition);
+  backdrop-filter: blur(12px);
 }
 .el-card:hover {
-  box-shadow: var(--dg-shadow-md) !important;
+  border-color: var(--dg-border-glow) !important;
+  box-shadow: var(--dg-shadow-md), var(--dg-glow-cyan) !important;
 }
 .el-card__header {
-  border-bottom: 1px solid var(--dg-border-light);
+  border-bottom: 1px solid var(--dg-border-light) !important;
   padding: 16px 20px;
 }
 .el-card__body {
@@ -126,101 +158,278 @@ code, pre {
   border-radius: var(--dg-radius-sm);
   font-weight: 500;
   transition: all var(--dg-transition);
+  background: var(--dg-surface-2);
+  border-color: var(--dg-border);
+  color: var(--dg-text);
 }
 .el-button:active {
   transform: scale(0.98);
 }
 .el-button--primary {
-  background-color: var(--dg-emerald);
-  border-color: var(--dg-emerald);
+  background-color: var(--dg-cyan-dim) !important;
+  border-color: var(--dg-cyan-dim) !important;
+  color: #0a0e1a !important;
+  font-weight: 600;
 }
 .el-button--primary:hover {
-  background-color: var(--dg-emerald-dark);
-  border-color: var(--dg-emerald-dark);
+  background-color: var(--dg-cyan) !important;
+  border-color: var(--dg-cyan) !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.3);
+}
+.el-button--default {
+  background: var(--dg-surface-2) !important;
+  border-color: var(--dg-border) !important;
+  color: var(--dg-text) !important;
+}
+.el-button--default:hover {
+  border-color: var(--dg-cyan-dim) !important;
+  color: var(--dg-cyan) !important;
+  background: var(--dg-sidebar-hover) !important;
 }
 
 /* Table */
 .el-table {
   border-radius: var(--dg-radius-sm);
   overflow: hidden;
+  background: transparent !important;
+  --el-table-bg-color: transparent;
+  --el-table-tr-bg-color: transparent;
+  --el-table-header-bg-color: var(--dg-bg-2);
+  --el-table-border-color: var(--dg-border-light);
+  --el-table-row-hover-bg-color: rgba(0, 240, 255, 0.04);
+  --el-table-text-color: var(--dg-text);
+  --el-table-header-text-color: var(--dg-text-secondary);
 }
+
+/* 斑马纹行 — 深色主题下偶数行不能出现白色/浅色底 */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell,
+.el-table--striped .el-table__body tr.el-table__row--striped .cell {
+  background: var(--dg-surface-2) !important;
+}
+/* 非斑马纹偶数行兜底 */
+.el-table__body tr:nth-child(even) td.el-table__cell {
+  background: transparent !important;
+}
+/* hover 时斑马纹行也统一显示 hover 背景 */
+.el-table--enable-row-hover
+  .el-table__body
+  tr:hover
+  td.el-table__cell {
+  background: rgba(0, 240, 255, 0.04) !important;
+}
+
 .el-table th.el-table__cell {
-  background-color: var(--dg-bg) !important;
+  background-color: var(--dg-bg-2) !important;
   font-weight: 600;
-  color: var(--dg-text-secondary);
+  color: var(--dg-text-secondary) !important;
   font-size: 13px;
+  border-bottom: 1px solid var(--dg-border) !important;
 }
 .el-table td.el-table__cell {
   font-size: 14px;
+  border-bottom: 1px solid var(--dg-border-light) !important;
+}
+.el-table__empty-block {
+  background: var(--dg-surface);
 }
 
 /* Tag */
 .el-tag {
   border-radius: 6px;
   font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+}
+.el-tag--info {
+  background: rgba(0, 240, 255, 0.1) !important;
+  border-color: rgba(0, 240, 255, 0.2) !important;
+  color: var(--dg-cyan) !important;
+}
+.el-tag--success {
+  background: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  color: var(--dg-success) !important;
+}
+.el-tag--warning {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-color: rgba(245, 158, 11, 0.25) !important;
+  color: var(--dg-warning) !important;
+}
+.el-tag--danger {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  color: var(--dg-danger) !important;
 }
 
 /* Input */
 .el-input__wrapper,
 .el-select .el-input__wrapper {
   border-radius: var(--dg-radius-sm);
+  background-color: var(--dg-surface-2) !important;
+  box-shadow: 0 0 0 1px var(--dg-border) inset !important;
+  transition: box-shadow var(--dg-transition);
+}
+.el-input__wrapper:hover,
+.el-select .el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--dg-cyan-dim) inset !important;
+}
+.el-input__wrapper.is-focus,
+.el-select .el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--dg-cyan) inset, 0 0 12px rgba(0, 240, 255, 0.1) !important;
+}
+.el-input__inner {
+  color: var(--dg-text) !important;
+}
+.el-input__inner::placeholder {
+  color: var(--dg-text-dim) !important;
+}
+
+/* Select dropdown */
+.el-select-dropdown {
+  background-color: var(--dg-surface-2) !important;
+  border: 1px solid var(--dg-border) !important;
+}
+.el-select-dropdown__item.hover,
+.el-select-dropdown__item:hover {
+  background-color: var(--dg-sidebar-hover) !important;
+}
+.el-select-dropdown__item.selected {
+  color: var(--dg-cyan) !important;
 }
 
 /* Dialog */
 .el-dialog {
   border-radius: var(--dg-radius-lg) !important;
   overflow: hidden;
+  background: var(--dg-surface) !important;
+  border: 1px solid var(--dg-border) !important;
+  box-shadow: var(--dg-shadow-lg) !important;
 }
 .el-dialog__header {
-  border-bottom: 1px solid var(--dg-border-light);
+  border-bottom: 1px solid var(--dg-border-light) !important;
   padding: 20px 24px;
   margin-right: 0;
 }
+.el-dialog__title {
+  color: var(--dg-text-bright) !important;
+}
 .el-dialog__body {
   padding: 24px;
+  color: var(--dg-text);
 }
 .el-dialog__footer {
-  border-top: 1px solid var(--dg-border-light);
+  border-top: 1px solid var(--dg-border-light) !important;
   padding: 16px 24px;
 }
 
 /* Drawer */
+.el-drawer {
+  background: var(--dg-surface) !important;
+}
 .el-drawer__header {
-  border-bottom: 1px solid var(--dg-border-light);
+  border-bottom: 1px solid var(--dg-border-light) !important;
   margin-bottom: 0;
   padding: 20px 24px;
+  color: var(--dg-text-bright) !important;
 }
 .el-drawer__body {
   padding: 24px;
 }
 
 /* Pagination */
+.el-pagination.is-background .el-pager li {
+  background-color: var(--dg-surface-2) !important;
+  color: var(--dg-text-secondary) !important;
+}
 .el-pagination.is-background .el-pager li.is-active {
-  background-color: var(--dg-emerald) !important;
+  background-color: var(--dg-cyan-dim) !important;
+  color: #0a0e1a !important;
+}
+.el-pagination.is-background .btn-prev,
+.el-pagination.is-background .btn-next {
+  background-color: var(--dg-surface-2) !important;
+  color: var(--dg-text-secondary) !important;
 }
 
 /* Descriptions */
 .el-descriptions__label {
   font-weight: 500;
-  color: var(--dg-text-secondary);
+  color: var(--dg-text-secondary) !important;
+}
+.el-descriptions__content {
+  color: var(--dg-text) !important;
+}
+.el-descriptions__cell {
+  border-color: var(--dg-border-light) !important;
 }
 
 /* Switch */
 .el-switch.is-checked .el-switch__core {
-  background-color: var(--dg-emerald) !important;
-  border-color: var(--dg-emerald) !important;
+  background-color: var(--dg-cyan-dim) !important;
+  border-color: var(--dg-cyan-dim) !important;
 }
 
 /* Loading */
 .el-loading-mask {
   border-radius: var(--dg-radius);
-  background-color: rgba(248, 250, 252, 0.8);
-  backdrop-filter: blur(4px);
+  background-color: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(6px);
 }
 
 /* Alert */
 .el-alert {
   border-radius: var(--dg-radius-sm);
+  border: 1px solid var(--dg-border);
+}
+.el-alert--info {
+  background: rgba(0, 240, 255, 0.06) !important;
+  border-color: rgba(0, 240, 255, 0.15) !important;
+}
+.el-alert--success {
+  background: rgba(16, 185, 129, 0.08) !important;
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+.el-alert--warning {
+  background: rgba(245, 158, 11, 0.08) !important;
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+.el-alert--error {
+  background: rgba(239, 68, 68, 0.08) !important;
+  border-color: rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Form */
+.el-form-item__label {
+  color: var(--dg-text-secondary) !important;
+}
+
+/* InputNumber */
+.el-input-number .el-input__wrapper {
+  background-color: var(--dg-surface-2) !important;
+}
+
+/* Timeline */
+.el-timeline-item__timestamp {
+  color: var(--dg-text-muted) !important;
+}
+
+/* Message box */
+.el-message-box {
+  background: var(--dg-surface) !important;
+  border: 1px solid var(--dg-border) !important;
+}
+.el-message-box__title {
+  color: var(--dg-text-bright) !important;
+}
+.el-message-box__content {
+  color: var(--dg-text) !important;
+}
+
+/* Popover */
+.el-popover.el-popper {
+  background: var(--dg-surface-2) !important;
+  border: 1px solid var(--dg-border) !important;
+  color: var(--dg-text) !important;
 }
 
 /* ===== Utility Classes ===== */
@@ -272,7 +481,7 @@ code, pre {
 .dg-page-title {
   font-size: 22px;
   font-weight: 700;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   margin: 0;
 }
 
@@ -292,7 +501,7 @@ code, pre {
   font-family: 'Outfit', sans-serif;
   font-size: 28px;
   font-weight: 700;
-  color: var(--dg-text);
+  color: var(--dg-text-bright);
   line-height: 1.2;
 }
 .dg-stat-label {
