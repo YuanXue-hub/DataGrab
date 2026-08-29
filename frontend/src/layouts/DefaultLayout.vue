@@ -44,6 +44,7 @@
           </div>
         </div>
         <div class="header-right">
+          <HotspotBell />
           <a
             href="http://localhost:8000/docs"
             target="_blank"
@@ -71,11 +72,13 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { Fold, Expand, Link } from '@element-plus/icons-vue'
+import HotspotBell from '@/components/HotspotBell.vue'
 
 const route = useRoute()
 const collapsed = ref(false)
 
 const menuItems = [
+  { path: '/app/monitor', title: '热点监控', icon: 'DataAnalysis', badge: 'BETA' },
   { path: '/app/sources', title: '数据源管理', icon: 'Connection' },
   { path: '/app/scrape', title: '爬取任务', icon: 'Download' },
   { path: '/app/data', title: '数据查看', icon: 'Document' },
@@ -88,6 +91,7 @@ const currentTitle = computed(
 )
 const currentSubtitle = computed(() => {
   const map: Record<string, string> = {
+    '/app/monitor': '实时热点监控、关键词管理与告警通知',
     '/app/sources': '管理爬虫数据源与选择器配置',
     '/app/scrape': '执行爬取任务并查看历史记录',
     '/app/data': '浏览与检索已采集的数据',

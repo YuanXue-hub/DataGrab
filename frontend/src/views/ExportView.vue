@@ -61,7 +61,7 @@
 
       <el-form :model="form" label-position="top" class="export-form">
         <el-row :gutter="20">
-          <el-col :xs="24" :sm="12" :md="8">
+          <el-col :xs="24" :sm="12" :md="6">
             <el-form-item label="数据源">
               <el-select
                 v-model="form.source_name"
@@ -78,7 +78,35 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12" :md="8">
+          <el-col :xs="24" :sm="12" :md="6">
+            <el-form-item label="关键词">
+              <el-select
+                v-model="form.keyword_id"
+                placeholder="全部关键词"
+                clearable
+                filterable
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="k in keywords"
+                  :key="k.id"
+                  :label="`${k.word}${k.language ? ' (' + k.language + ')' : ''}`"
+                  :value="k.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="6">
+            <el-form-item label="搜索词">
+              <el-input
+                v-model="form.search"
+                placeholder="标题/摘要/正文模糊匹配"
+                clearable
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="12" :md="6">
             <el-form-item label="最大条数">
               <el-input-number
                 v-model="form.limit"
@@ -89,7 +117,10 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="24" :md="8">
+        </el-row>
+
+        <el-row>
+          <el-col :span="24">
             <el-form-item label="操作">
               <el-button
                 type="primary"
@@ -175,6 +206,8 @@
               {{ h.format?.toUpperCase() }}
             </span>
             <span class="hist-source">{{ h.source_name || '全部数据源' }}</span>
+            <span v-if="h.keyword_word" class="hist-keyword">{{ h.keyword_word }}</span>
+            <span v-if="h.search" class="hist-search">搜索:{{ h.search }}</span>
             <span class="hist-meta">{{ h.message }}</span>
           </div>
         </el-timeline-item>
@@ -198,10 +231,12 @@ import {
   Upload, Download, Document, Grid, Clock, Delete, Notebook, Select,
 } from '@element-plus/icons-vue'
 import { listSources } from '@/api/sources'
+import { listKeywords } from '@/api/topics'
 import { exportData } from '@/api/export'
-import type { SourceInfo, ExportFormat } from '@/types'
+import type { SourceInfo, ExportFormat, Keyword } from '@/types'
 
 const sources = ref<SourceInfo[]>([])
+const keywords = ref<Keyword[]>([])
 const exporting = ref(false)
 const lastJsonPreview = ref('')
 const lastBlob = ref<Blob | null>(null)
@@ -209,6 +244,8 @@ const lastFilename = ref('')
 
 const form = reactive({
   source_name: '',
+  keyword_id: undefined as number | undefined,
+  search: '',
   format: 'json' as ExportFormat,
   limit: 500,
 })
@@ -217,6 +254,8 @@ interface HistoryItem {
   time: string
   format: ExportFormat
   source_name: string
+  keyword_word: string
+  search: string
   success: boolean
   message: string
 }
@@ -238,6 +277,17 @@ async function loadSources() {
   sources.value = await listSources()
 }
 
+async function loadKeywords() {
+  keywords.value = await listKeywords(undefined, true)
+}
+
+// 根据 keyword_id 查找关键词文本（用于历史记录展示）
+function keywordWord(id?: number): string {
+  if (!id) return ''
+  const k = keywords.value.find((x) => x.id === id)
+  return k ? k.word : ''
+}
+
 async function onExport() {
   exporting.value = true
   let errMsg = ''
@@ -245,6 +295,8 @@ async function onExport() {
     const result = await exportData({
       format: form.format,
       source_name: form.source_name || undefined,
+      keyword_id: form.keyword_id || undefined,
+      search: form.search || undefined,
       limit: form.limit,
     })
 
@@ -279,6 +331,8 @@ async function onExport() {
       time: new Date().toLocaleString('zh-CN'),
       format: result.format,
       source_name: form.source_name,
+      keyword_word: keywordWord(form.keyword_id),
+      search: form.search,
       success: true,
       message: msg,
     })
@@ -292,8 +346,12 @@ async function onExport() {
         const parsed = JSON.parse(txt)
         if (parsed.detail) {
           if (/no data to export/i.test(parsed.detail)) {
-            const src = form.source_name ? `「${form.source_name}」` : '全部数据源'
-            errMsg = `${src} 暂无数据，请先爬取`
+            const scopeParts: string[] = []
+            if (form.source_name) scopeParts.push(`数据源「${form.source_name}」`)
+            if (form.keyword_id) scopeParts.push(`关键词「${keywordWord(form.keyword_id)}」`)
+            if (form.search) scopeParts.push(`搜索词「${form.search}」`)
+            const scope = scopeParts.length ? scopeParts.join('、') : '全部数据'
+            errMsg = `${scope} 暂无数据，请先爬取或调整筛选条件`
           } else {
             errMsg = parsed.detail
           }
@@ -307,6 +365,8 @@ async function onExport() {
       time: new Date().toLocaleString('zh-CN'),
       format: form.format,
       source_name: form.source_name,
+      keyword_word: keywordWord(form.keyword_id),
+      search: form.search,
       success: false,
       message: errMsg,
     })
@@ -370,7 +430,10 @@ function redownloadLast() {
   }
 }
 
-onMounted(loadSources)
+onMounted(() => {
+  loadSources()
+  loadKeywords()
+})
 </script>
 
 <style scoped>
@@ -559,6 +622,22 @@ onMounted(loadSources)
   color: var(--dg-text-bright);
   font-weight: 500;
   font-size: 13px;
+}
+
+.hist-keyword {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(168, 85, 247, 0.12);
+  color: #c084fc;
+}
+
+.hist-search {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(14, 165, 233, 0.12);
+  color: #38bdf8;
 }
 
 .hist-meta {

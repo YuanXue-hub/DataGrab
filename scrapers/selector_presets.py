@@ -222,6 +222,82 @@ PRESETS = {
         "date_selector": ".age, [class*=time]",
     },
 
+    # ==================== 中文 AI / 科技垂直媒体 ====================
+    "36kr.com": {
+        "article_selector": ".article-item, .post-item, .recommend-card, li",
+        "title_selector": ".article-item-title, .title, a",
+        "link_selector": "a",
+        "link_filter": "/p/",
+        "content_selector": ".article-content, .article-detail-content, [class*=content]",
+        "date_selector": ".time, .date, [class*=time]",
+    },
+    "www.jiqizhixin.com": {
+        "article_selector": ".article-item, .content-item, li",
+        "title_selector": ".article-title, .title, a",
+        "link_selector": "a",
+        "link_filter": "/article/",
+        "content_selector": ".article__content, .article-content, [class*=content]",
+        "date_selector": ".time, .date, [class*=time]",
+    },
+    "www.qbitai.com": {
+        "article_selector": ".post-item, .article-item, article, li",
+        "title_selector": ".entry-title, .title, h2 a, a",
+        "link_selector": "a",
+        "link_filter": "/",
+        "content_selector": ".entry-content, .article-content, article p",
+        "date_selector": ".time, .date, time, [class*=time]",
+    },
+    "www.infoq.cn": {
+        "article_selector": ".article-item, .list-item, li",
+        "title_selector": ".article-title, .title, a",
+        "link_selector": "a",
+        "link_filter": "/article/",
+        "content_selector": ".article-content, .content, [class*=content]",
+        "date_selector": ".time, .date, [class*=time]",
+    },
+    "www.leiphone.com": {
+        "article_selector": ".lbd-article-item, .article-item, li",
+        "title_selector": ".lbd-article-title, .title, h3 a, a",
+        "link_selector": "a",
+        "link_filter": "/news/",
+        "content_selector": ".article-content, .lbd-article-content, [class*=content]",
+        "date_selector": ".time, .date, [class*=time]",
+    },
+
+    # ==================== 知识产权专业媒体 ====================
+    "www.iprchn.com": {
+        "article_selector": ".news-list li, .list-item, li",
+        "title_selector": "h3 a, .title a, a",
+        "link_selector": "a",
+        "link_filter": "/",
+        "content_selector": ".article-content, .content, .text, [class*=content]",
+        "date_selector": ".date, .time, [class*=time]",
+    },
+    "www.cnipa.gov.cn": {
+        "article_selector": ".list-item, .news-list li, li",
+        "title_selector": "h3 a, .title a, a",
+        "link_selector": "a",
+        "link_filter": "/art/",
+        "content_selector": ".article-content, .content, .text, [class*=content]",
+        "date_selector": ".date, .time, [class*=time]",
+    },
+
+    # ==================== 英文 AI / 科技媒体 ====================
+    "venturebeat.com": {
+        "article_selector": "article, .ArticleListing, li",
+        "title_selector": "h2 a, .article-title, a",
+        "link_selector": "a",
+        "content_selector": ".article-content, .article-body, article p",
+        "date_selector": "time, .date, [class*=time]",
+    },
+    "arstechnica.com": {
+        "article_selector": "article, .listing-latest, li",
+        "title_selector": "h2 a, h3 a, a",
+        "link_selector": "a",
+        "content_selector": ".article-content, article p, [class*=content]",
+        "date_selector": "time, .date, [class*=time]",
+    },
+
     # ==================== 俄罗斯卫星通讯社 ====================
     "sputniknews.cn": {
         "article_selector": ".cell-main-photo, .cell-list__item",

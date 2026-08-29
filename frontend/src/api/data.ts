@@ -3,6 +3,8 @@ import type { DataResponse } from '@/types'
 
 export interface DataQueryParams {
   source_name?: string
+  topic_id?: number
+  keyword_id?: number
   limit?: number
   offset?: number
 }

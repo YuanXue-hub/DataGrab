@@ -171,10 +171,11 @@ def _run_scrape_job(job_id: str, source_name: str, limit: int):
 
         # 存入 MySQL grab 表，关联 job_id
         saved = 0
+        deduped = 0
         for item in results:
             try:
                 if hasattr(item, "title"):
-                    grab_insert(
+                    new_id = grab_insert(
                         source_id=source_id,
                         job_id=job_id,
                         source_name=source_name,
@@ -187,9 +188,14 @@ def _run_scrape_job(job_id: str, source_name: str, limit: int):
                         tags=getattr(item, "tags", None) if hasattr(item, "tags") else None,
                         published_at=getattr(item, "published_at", None) if hasattr(item, "published_at") else None,
                     )
-                    saved += 1
+                    if new_id > 0:
+                        saved += 1
+                    else:
+                        deduped += 1
             except Exception as e:
                 logger.warning(f"Failed to save: {e}")
+        if deduped > 0:
+            logger.info(f"Job {job_id}: {deduped} items deduplicated (already exists)")
 
         # 缓存结果预览（仅内存，供 GET /scrape/{job_id} 一次性返回）
         serialized = [_serialize_item(item) for item in results]
@@ -198,6 +204,15 @@ def _run_scrape_job(job_id: str, source_name: str, limit: int):
         update_job(job_id, status="completed", total=saved,
                    completed_at=datetime.now())
         logger.info(f"Job {job_id}: {len(results)} items, saved {saved}")
+
+        # ── 爬取完成后触发热点监控分析（不影响任务完成状态）──
+        if saved > 0:
+            try:
+                from core.analyzer import analyze_for_job
+                astats = analyze_for_job(job_id)
+                logger.info(f"Job {job_id} analyze done: {astats}")
+            except Exception as ae:
+                logger.warning(f"Job {job_id} analyze failed (non-fatal): {ae}")
         # 完成后保留缓存一段时间供前端拉取结果，
         # 不主动 evict（前端拉过一次后由其自己停止轮询）
 

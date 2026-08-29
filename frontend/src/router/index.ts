@@ -32,6 +32,16 @@ const router = createRouter({
           meta: { title: '数据查看', icon: 'Document' },
         },
         {
+          path: 'topics',
+          redirect: '/app/monitor',
+        },
+        {
+          path: 'monitor',
+          name: 'monitor',
+          component: () => import('@/views/MonitorDashboard.vue'),
+          meta: { title: '热点监控看板', icon: 'DataAnalysis' },
+        },
+        {
           path: 'export',
           name: 'export',
           component: () => import('@/views/ExportView.vue'),
@@ -43,6 +53,8 @@ const router = createRouter({
     { path: '/sources', redirect: '/app/sources' },
     { path: '/scrape', redirect: '/app/scrape' },
     { path: '/data', redirect: '/app/data' },
+    { path: '/topics', redirect: '/app/topics' },
+    { path: '/monitor', redirect: '/app/monitor' },
     { path: '/export', redirect: '/app/export' },
   ],
 })

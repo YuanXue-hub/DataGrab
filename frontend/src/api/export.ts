@@ -5,6 +5,8 @@ import type { ExportFormat } from '@/types'
 export interface ExportParams {
   format: ExportFormat
   source_name?: string
+  keyword_id?: number
+  search?: string
   limit?: number
 }
 
@@ -45,8 +47,12 @@ export async function exportData(params: ExportParams): Promise<ExportResult> {
       // 友好化常见错误提示
       let msg = detail
       if (/no data to export/i.test(detail) || detail.includes('没有数据')) {
-        const src = params.source_name ? `「${params.source_name}」` : '全部数据源'
-        msg = `${src} 下暂无可导出的数据，请先执行爬取任务，或尝试选择其他数据源 / 调整最大条数。`
+        const scopeParts: string[] = []
+        if (params.source_name) scopeParts.push(`数据源「${params.source_name}」`)
+        if (params.keyword_id) scopeParts.push(`所选关键词`)
+        if (params.search) scopeParts.push(`搜索词「${params.search}」`)
+        const scope = scopeParts.length ? scopeParts.join('、') : '全部数据'
+        msg = `${scope} 下暂无可导出的数据，请先执行爬取任务，或调整筛选条件 / 最大条数。`
         ElMessage.warning(msg)
       } else {
         ElMessage.error(`导出失败: ${msg}`)
@@ -59,12 +65,21 @@ export async function exportData(params: ExportParams): Promise<ExportResult> {
     throw err
   }
 
-  // 从 Content-Disposition 提取文件名
+  // 从 Content-Disposition 提取文件名（优先 RFC 5987 filename*=UTF-8''...）
   const disposition = response.headers['content-disposition'] || ''
   let filename = 'datagrab_export'
-  const match = disposition.match(/filename="?([^";]+)"?/i)
-  if (match) {
-    filename = decodeURIComponent(match[1]) // 处理中文文件名编码
+  const starMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (starMatch) {
+    filename = decodeURIComponent(starMatch[1])
+  } else {
+    const match = disposition.match(/filename="?([^";]+)"?/i)
+    if (match) {
+      try {
+        filename = decodeURIComponent(match[1])
+      } catch {
+        filename = match[1]
+      }
+    }
   }
 
   // 从自定义 header 读取条数

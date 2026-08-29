@@ -86,6 +86,13 @@ def _score_node(el: Tag) -> float:
 def extract_content(html: str) -> str:
     """从 HTML 中提取正文文本。
 
+    提取顺序：
+    1. textarea 数据容器（JS 渲染页面常见模式，如环球网把正文 HTML 实体编码存放在
+       <textarea class="article-content"> 里，由前端 JS 渲染）：
+       若 textarea 的 class/id 含 content/article/body/text/post/entry/story/detail
+       且内容疑似 HTML（含 '<'），二次解析提取正文。
+    2. Readability 打分算法（移除干扰元素后对候选节点打分取最高）。
+
     Args:
         html: 详情页原始 HTML
 
@@ -94,6 +101,29 @@ def extract_content(html: str) -> str:
     """
     soup = BeautifulSoup(html, "lxml")
 
+    # ── Step 1: textarea 数据容器提取（JS 渲染页面）──
+    # 环球网等站点把正文 HTML 实体编码后放在 textarea 里供前端渲染，
+    # Readability 算法无法识别这类容器，需特殊处理。
+    for ta in soup.select("textarea"):
+        cls = " ".join(ta.get("class") or []) + " " + (ta.get("id") or "")
+        if not _GOOD_KEYWORDS.search(cls):
+            continue
+        raw = ta.get_text()
+        # 疑似 HTML 内容（含标签且足够长）才二次解析
+        if "<" not in raw or len(raw) < 200:
+            continue
+        try:
+            inner = BeautifulSoup(raw, "lxml")
+            # 移除内部 script/style/nav 等干扰
+            for bad in inner.select("script, style, nav, footer, iframe"):
+                bad.decompose()
+            text = inner.get_text(separator="\n", strip=True)
+            if len(text) >= 100:
+                return text
+        except Exception:
+            continue
+
+    # ── Step 2: Readability 打分算法 ──
     # 移除干扰元素
     for bad in soup.select(
         "script, style, nav, footer, iframe, noscript, "

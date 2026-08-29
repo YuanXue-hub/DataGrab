@@ -11,6 +11,7 @@ import os
 import tempfile
 from datetime import datetime
 from typing import List, Optional
+from urllib.parse import quote as url_quote
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
@@ -59,24 +60,32 @@ def _rows_to_items(rows: List[dict]):
 def api_export_data(
     format: str = Query(default="json", pattern="^(json|csv|docx)$"),
     source_name: Optional[str] = Query(default=None, description="按数据源过滤"),
+    keyword_id: Optional[int] = Query(default=None, description="按关键词过滤（仅导出命中该关键词的文章）"),
+    search: Optional[str] = Query(default=None, description="按搜索词在标题/摘要/正文模糊匹配"),
     limit: int = Query(default=500, ge=1, le=5000),
 ):
     """导出已爬取数据，通过浏览器直接下载到本地。
 
-    三种格式均返回文件流，由浏览器触发下载。
+    支持按数据源、关键词、搜索词过滤，三种格式均返回文件流。
     """
-    total = grab_count(source_name=source_name)
+    total = grab_count(source_name=source_name, keyword_id=keyword_id, search=search)
     if total == 0:
+        parts = []
         if source_name:
-            detail = f"No data to export for source '{source_name}'"
-            logger.warning(f"[EXPORT] 跳过：数据源「{source_name}」下没有抓取记录")
-        else:
-            detail = "No data to export — grab table is empty across all sources"
-            logger.warning("[EXPORT] 跳过：grab 表中没有任何抓取记录")
+            parts.append(f"数据源「{source_name}」")
+        if keyword_id:
+            parts.append(f"关键词ID={keyword_id}")
+        if search:
+            parts.append(f"搜索词「{search}」")
+        scope = "、".join(parts) if parts else "全部数据"
+        detail = f"No data to export for {scope}"
+        logger.warning(f"[EXPORT] 跳过：{scope} 下没有抓取记录")
         raise HTTPException(status_code=404, detail=detail)
 
-    rows = grab_list(source_name=source_name, limit=limit, offset=0)
-    logger.info(f"[EXPORT] format={format} source={source_name or 'ALL'} limit={limit}, 命中 {len(rows)} 条")
+    rows = grab_list(source_name=source_name, keyword_id=keyword_id, search=search,
+                     limit=limit, offset=0)
+    logger.info(f"[EXPORT] format={format} source={source_name or 'ALL'} "
+                f"keyword_id={keyword_id} search={search} limit={limit}, 命中 {len(rows)} 条")
 
     # 解析 JSON / datetime 字段为可序列化结构
     items = []
@@ -94,8 +103,34 @@ def api_export_data(
         items.append(item)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    source_suffix = f"_{source_name}" if source_name else ""
-    filename_base = f"datagrab_export{source_suffix}_{ts}"
+    parts = []
+    if source_name:
+        parts.append(source_name)
+    if keyword_id:
+        # 查关键词文本用于文件名
+        try:
+            from storage.database import get_connection
+            conn = get_connection()
+            with conn.cursor() as cur:
+                cur.execute("SELECT word FROM keyword WHERE id = %s", (keyword_id,))
+                row = cur.fetchone()
+            conn.close()
+            kw_word = row["word"] if row else f"kw{keyword_id}"
+        except Exception:
+            kw_word = f"kw{keyword_id}"
+        parts.append(kw_word)
+    if search:
+        parts.append(f"search_{search}")
+    suffix = ("_" + "_".join(parts)) if parts else ""
+    filename_base = f"datagrab_export{suffix}_{ts}"
+    # kw_word 可能在 keyword_id 分支未定义，确保 DOCX 标题安全访问
+    kw_word_safe = kw_word if 'kw_word' in locals() else (f"kw{keyword_id}" if keyword_id else "")
+
+    def _content_disposition(fmt_ext: str) -> str:
+        """生成兼容中文文件名的 Content-Disposition（RFC 5987）。"""
+        fn = f"{filename_base}.{fmt_ext}"
+        fn_ascii = url_quote(fn, safe='')
+        return f"attachment; filename=\"{fn_ascii}\"; filename*=UTF-8''{fn_ascii}"
 
     # ── JSON 导出 ──
     if format == "json":
@@ -104,7 +139,7 @@ def api_export_data(
             content=content.encode("utf-8"),
             media_type="application/json",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename_base}.json"',
+                "Content-Disposition": _content_disposition("json"),
                 "X-Export-Count": str(len(items)),
                 "X-Export-Format": "json",
             },
@@ -132,7 +167,7 @@ def api_export_data(
             content=csv_content.encode("utf-8-sig"),
             media_type="text/csv",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename_base}.csv"',
+                "Content-Disposition": _content_disposition("csv"),
                 "X-Export-Count": str(len(items)),
                 "X-Export-Format": "csv",
             },
@@ -147,8 +182,15 @@ def api_export_data(
         repo.add_all(_rows_to_items(rows))
 
         title = "DataGrab 数据报告"
+        title_parts = []
         if source_name:
-            title = f"DataGrab 数据报告 - {source_name}"
+            title_parts.append(source_name)
+        if keyword_id:
+            title_parts.append(kw_word_safe)
+        if search:
+            title_parts.append(f"搜索:{search}")
+        if title_parts:
+            title = f"DataGrab 数据报告 - {' / '.join(title_parts)}"
 
         # 生成到临时目录，WordExporter 内部会追加时间戳到文件名
         tmp_dir = tempfile.mkdtemp()
@@ -166,7 +208,7 @@ def api_export_data(
             content=docx_content,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={
-                "Content-Disposition": f'attachment; filename="{filename_base}.docx"',
+                "Content-Disposition": _content_disposition("docx"),
                 "X-Export-Count": str(len(items)),
                 "X-Export-Format": "docx",
             },
