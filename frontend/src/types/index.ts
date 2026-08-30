@@ -289,6 +289,30 @@ export interface HourlyArticleBucket {
   cnt: number
 }
 
+// ============ 最新热点文章 ============
+export interface LatestArticleKeyword {
+  word: string
+  hit_count: number
+  match_type: string
+  direct_mention: number
+}
+export interface LatestArticle {
+  id: number
+  title: string
+  source_url: string
+  source_name: string
+  grabbed_at: string
+  relevance_score: number
+  keyword_mentioned: number
+  summary: string
+  keywords: LatestArticleKeyword[]
+}
+export interface LatestArticlesResponse {
+  items: LatestArticle[]
+  max_id: number
+  count: number
+}
+
 // ============ Dashboard Summary ============
 export interface DashboardSummary {
   today_events: number

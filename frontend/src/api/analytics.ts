@@ -5,6 +5,7 @@ import type {
   TopKeywordRow, TopicDistribution, HourlyArticleBucket,
   HotspotEventListResponse, HotspotLevel,
   RecalcRequest, RecalcResponse,
+  LatestArticlesResponse,
 } from '@/types'
 
 // 顶部统计卡
@@ -67,4 +68,13 @@ export function recalcHistory(payload: RecalcRequest) {
   return client.post<unknown, RecalcResponse>('/analytics/recalc', payload, {
     timeout: 600000, // 可能非常久
   })
+}
+
+// 最新热点文章（看板展示 + 实时通知轮询）
+export function getLatestArticles(params: {
+  limit?: number
+  since_id?: number
+  min_score?: number
+} = {}) {
+  return client.get<unknown, LatestArticlesResponse>('/analytics/latest-articles', { params })
 }

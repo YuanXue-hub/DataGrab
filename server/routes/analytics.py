@@ -524,3 +524,76 @@ def notify_flush_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Flush failed: {e}")
     return {"ok": True, **r}
+
+
+# ============================
+#  最新热点文章（看板展示 + 实时通知轮询）
+# ============================
+
+@router.get("/analytics/latest-articles")
+def latest_articles(
+    limit: int = Query(default=20, ge=1, le=100),
+    since_id: int = Query(default=0, ge=0, description="只返回 id > since_id 的文章，用于增量轮询"),
+    min_score: float = Query(default=0, ge=0, description="最低相关性分数阈值"),
+):
+    """最新热点文章（有关键词命中且 relevance_score 达标的文章，按时间倒序）。
+
+    用途：
+    1. 看板展示最近命中的高相关文章列表
+    2. 前端实时通知轮询：记录上次返回的 max_id，定期带 since_id 获取增量新文章
+
+    返回每篇文章附带动命中的关键词列表（word / hit_count / match_type / direct_mention）。
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            sql = """
+                SELECT g.id, g.title, g.source_url, g.source_name, g.grabbed_at,
+                       g.relevance_score, g.keyword_mentioned, g.summary,
+                       GROUP_CONCAT(
+                         CONCAT_WS('||',
+                           k.word, h.hit_count, h.match_type, h.direct_mention
+                         ) SEPARATOR '##'
+                       ) AS kw_blob
+                FROM grab g
+                JOIN grab_keyword_hit h ON h.grab_id = g.id
+                JOIN keyword k ON h.keyword_id = k.id
+                WHERE g.id > %s AND g.relevance_score >= %s
+                GROUP BY g.id
+                ORDER BY g.id DESC
+                LIMIT %s
+            """
+            cur.execute(sql, (since_id, min_score, limit))
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    items = []
+    max_id = since_id
+    for r in rows:
+        keywords = []
+        if r.get("kw_blob"):
+            for chunk in r["kw_blob"].split("##"):
+                parts = chunk.split("||")
+                if len(parts) >= 4:
+                    keywords.append({
+                        "word": parts[0],
+                        "hit_count": int(parts[1]),
+                        "match_type": parts[2],
+                        "direct_mention": int(parts[3]),
+                    })
+        items.append({
+            "id": r["id"],
+            "title": r["title"],
+            "source_url": r["source_url"],
+            "source_name": r["source_name"],
+            "grabbed_at": r["grabbed_at"].isoformat() if hasattr(r["grabbed_at"], "isoformat") else str(r["grabbed_at"]),
+            "relevance_score": float(r["relevance_score"] or 0),
+            "keyword_mentioned": int(r["keyword_mentioned"] or 0),
+            "summary": (r["summary"] or "")[:120],
+            "keywords": keywords,
+        })
+        if r["id"] > max_id:
+            max_id = r["id"]
+
+    return {"items": items, "max_id": max_id, "count": len(items)}

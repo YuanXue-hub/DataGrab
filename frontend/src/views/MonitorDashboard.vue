@@ -83,94 +83,41 @@
               </div>
             </div>
 
-            <!-- 小时入库节奏 -->
-            <div class="bento full">
-              <div class="bento-head">
-                <div>
-                  <h4 class="bento-title">入库节奏</h4>
-                  <div class="bento-sub">每小时新增文章数，直观反映调度任务触发情况</div>
-                </div>
-                <el-radio-group v-model="hours" size="default" @change="refreshCharts">
-                  <el-radio-button :value="24">24h</el-radio-button>
-                  <el-radio-button :value="72">72h</el-radio-button>
-                  <el-radio-button :value="168">7d</el-radio-button>
-                </el-radio-group>
-              </div>
-              <v-chart class="chart chart-hourly" :option="hourlyOption" autoresize />
-            </div>
-
-            <!-- 热点事件 -->
+            <!-- 最新热点文章 -->
             <div class="bento full">
               <div class="bento-head">
                 <div>
                   <h4 class="bento-title">
-                    热点突发告警
-                    <el-tag v-if="unreadCount" type="danger" effect="dark" style="margin-left:8px" round>{{ unreadCount }} 未读</el-tag>
+                    最新热点文章
+                    <el-tag v-if="newArticleCount > 0" type="danger" effect="dark" style="margin-left:8px" round>{{ newArticleCount }} 条新</el-tag>
                   </h4>
-                  <div class="bento-sub">热点词提及量显著高于 7 天基线时触发</div>
+                  <div class="bento-sub">近期命中监控关键词的高相关文章，实时刷新 · 点击标题查看原文</div>
                 </div>
                 <div class="filter-bar">
-                  <el-select v-model="eventFilter.level" placeholder="级别" clearable style="width:120px" @change="refreshEvents">
-                    <el-option label="低 (≥3x)" value="low" />
-                    <el-option label="中 (≥5x)" value="mid" />
-                    <el-option label="高 (≥10x)" value="high" />
-                  </el-select>
-                  <el-checkbox v-model="eventFilter.only_unread" @change="refreshEvents">仅未读</el-checkbox>
-                  <el-button type="primary" plain size="small" :icon="Check" :disabled="!unreadCount" @click="readAll">全部已读</el-button>
+                  <el-button :icon="RefreshRight" size="small" @click="loadLatestArticles">刷新</el-button>
                 </div>
               </div>
 
-              <el-table :data="events" v-loading="eventLoading" stripe empty-text="暂无告警事件">
-                <el-table-column label="级别" width="100" align="center">
-                  <template #default="{ row }">
-                    <el-tag :type="levelTag(row.level)" effect="dark" round>{{ levelText(row.level) }}</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="热点词" min-width="200">
-                  <template #default="{ row }">
-                    <strong v-if="row.keyword_word" class="kw-hit">{{ row.keyword_word }}</strong>
-                    <span v-else class="muted">（聚合）</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="窗口时间" width="220">
-                  <template #default="{ row }">
-                    <div class="time-col">
-                      <div>{{ formatTime(row.window_start) }} ~</div>
-                      <div class="muted">{{ formatTime(row.window_end) }}</div>
+              <div class="article-list" v-loading="articleLoading">
+                <div v-for="art in latestArticles" :key="art.id" class="article-item">
+                  <div class="art-main">
+                    <a :href="art.source_url" target="_blank" rel="noopener" class="art-title">{{ art.title }}</a>
+                    <div class="art-meta">
+                      <span class="art-src">{{ art.source_name }}</span>
+                      <span class="art-time">{{ formatTime(art.grabbed_at) }}</span>
+                      <span class="art-score" :class="scoreClass(art.relevance_score)">{{ art.relevance_score.toFixed(0) }}分</span>
                     </div>
-                  </template>
-                </el-table-column>
-                <el-table-column label="文章" width="90" align="right">
-                  <template #default="{ row }"><strong class="num">{{ row.article_cnt }}</strong></template>
-                </el-table-column>
-                <el-table-column label="基线" width="100" align="right">
-                  <template #default="{ row }"><span class="muted">{{ row.baseline.toFixed(1) }}</span></template>
-                </el-table-column>
-                <el-table-column label="倍率" width="100" align="right">
-                  <template #default="{ row }">
-                    <strong class="ratio" :class="row.level">× {{ row.ratio.toFixed(1) }}</strong>
-                  </template>
-                </el-table-column>
-                <el-table-column label="状态" width="90" align="center">
-                  <template #default="{ row }">
-                    <el-tag v-if="row.is_read" type="info" effect="plain" size="small">已读</el-tag>
-                    <el-tag v-else type="warning" effect="dark" size="small">未读</el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="120" fixed="right" align="center">
-                  <template #default="{ row }">
-                    <el-button v-if="!row.is_read" link type="primary" size="small" @click="readOne(row.id)">标已读</el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-
-              <div class="pager">
-                <el-pagination
-                  background layout="total, prev, pager, next"
-                  :total="eventTotal" :page-size="eventPage.limit"
-                  :current-page="eventPage.offset / eventPage.limit + 1"
-                  @current-change="onEventPageChange"
-                />
+                    <div v-if="art.summary" class="art-summary">{{ art.summary }}</div>
+                  </div>
+                  <div class="art-kws">
+                    <el-tag
+                      v-for="kw in art.keywords" :key="kw.word"
+                      :type="kw.direct_mention ? 'success' : 'warning'"
+                      effect="plain" size="small" round
+                    >{{ kw.word }}<span class="kw-cnt">×{{ kw.hit_count }}</span></el-tag>
+                  </div>
+                </div>
+                <div v-if="!latestArticles.length" class="empty-articles">暂无热点文章</div>
               </div>
             </div>
           </template>
@@ -186,12 +133,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
-  Warning, Document, Connection, DataAnalysis, Check,
+  Warning, Document, Connection, DataAnalysis,
   Download, RefreshRight,
 } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
@@ -204,12 +151,12 @@ use([CanvasRenderer, BarChart, LineChart, GaugeChart, GridComponent, TitleCompon
 
 import {
   getDashboardSummary, getKeywordTrend, getTopKeywords,
-  getHourlyArticles, listEvents, markEventsRead, recalcHistory,
+  getLatestArticles, recalcHistory,
 } from '@/api/analytics'
 import { listKeywords } from '@/api/topics'
 import type {
-  Keyword, DashboardSummary, HotspotEvent, HotspotLevel,
-  TopKeywordRow, HourlyArticleBucket, KeywordTrendSeries,
+  Keyword, DashboardSummary,
+  TopKeywordRow, KeywordTrendSeries, LatestArticle, RecalcRequest,
 } from '@/types'
 import TopicsView from './TopicsView.vue'
 
@@ -217,8 +164,7 @@ import TopicsView from './TopicsView.vue'
 const activeTab = ref<'dashboard' | 'keywords'>('dashboard')
 const hours = ref(168)  // 默认7天，覆盖更广时间窗口
 const topLimit = ref(20)
-const loading = reactive({ summary: false, trend: false, hourly: false, top: false })
-const eventLoading = ref(false)
+const loading = reactive({ summary: false, trend: false, top: false })
 const recalcing = ref(false)
 
 const summary = ref<DashboardSummary>({
@@ -325,9 +271,6 @@ function gaugeOption(g: { name: string; value: number; max: number; unit: string
   }
 }
 
-function countByLang(l: string) {
-  return allKeywords.value.filter(k => k.language === l && k.enabled).length
-}
 function formatNum(n: string | number) {
   if (typeof n === 'string') return n
   if (n >= 10000) return (n / 10000).toFixed(1) + 'w'
@@ -381,44 +324,86 @@ const topKwOption = computed(() => ({
   }],
 }))
 
-// ============ 小时入库 ============
-const hourly = ref<HourlyArticleBucket[]>([])
-const hourlyOption = computed(() => ({
-  grid: { left: 48, right: 24, top: 24, bottom: 48 },
-  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, backgroundColor: 'rgba(20,25,36,0.95)', borderColor: '#1C2333', textStyle: { color: '#e6e8eb' } },
-  xAxis: { type: 'category', data: hourly.value.map(h => h.bucket),
-    axisLabel: { color: '#7a8190', fontSize: 11 }, axisLine: { lineStyle: { color: '#2a3142' } } },
-  yAxis: { type: 'value', axisLabel: { color: '#7a8190' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.05)' } } },
-  series: [{
-    type: 'bar', data: hourly.value.map(h => h.cnt), barMaxWidth: 24,
-    itemStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-      colorStops: [{ offset: 0, color: '#00E5FF' }, { offset: 1, color: '#0a3a4a' }] }, borderRadius: [4, 4, 0, 0] },
-  }],
-}))
+// ============ 小时入库（已移除，保留占位避免引用错误）============
 
-// ============ 热点事件 ============
-const events = ref<HotspotEvent[]>([])
-const eventTotal = ref(0)
-const unreadCount = ref(0)
-const eventFilter = reactive<{ level: string; only_unread: boolean }>({ level: '', only_unread: false })
-const eventPage = reactive({ limit: 20, offset: 0 })
+// ============ 最新热点文章 ============
+const latestArticles = ref<LatestArticle[]>([])
+const articleLoading = ref(false)
+const newArticleCount = ref(0)
+const lastMaxId = ref(0)
 
-async function refreshEvents() {
-  eventLoading.value = true
+async function loadLatestArticles() {
+  articleLoading.value = true
   try {
-    const res = await listEvents({
-      level: (eventFilter.level || undefined) as HotspotLevel | undefined,
-      only_unread: eventFilter.only_unread || undefined,
-      limit: eventPage.limit, offset: eventPage.offset,
-    })
-    events.value = res.items
-    eventTotal.value = res.total
-    unreadCount.value = summary.value.unread_events
-  } finally { eventLoading.value = false }
+    const res = await getLatestArticles({ limit: 20 })
+    latestArticles.value = res.items
+    // 初始化基线：首次加载只记录 max_id，不计新文章数
+    if (lastMaxId.value === 0) {
+      lastMaxId.value = res.max_id
+      newArticleCount.value = 0
+    }
+  } finally { articleLoading.value = false }
 }
-function onEventPageChange(p: number) { eventPage.offset = (p - 1) * eventPage.limit; refreshEvents() }
-async function readOne(id: number) { await markEventsRead([id], false); await refreshEvents(); await refreshSummary() }
-async function readAll() { await markEventsRead([], true); ElMessage.success('已全部标记已读'); await refreshEvents(); await refreshSummary() }
+
+// 评分颜色分级
+function scoreClass(score: number) {
+  if (score >= 70) return 'score-high'
+  if (score >= 30) return 'score-mid'
+  return 'score-low'
+}
+
+// ============ 实时通知：自动轮询增量新文章 ============
+let pollTimer: ReturnType<typeof setInterval> | null = null
+const POLL_INTERVAL = 30000  // 30秒轮询一次
+
+// 页面加载后自动请求桌面通知权限（静默，不弹窗打扰；拒绝也不影响页面内通知）
+function requestNotifyPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {})
+  }
+}
+
+// 启动自动轮询（页面加载后自动调用，无需用户操作）
+function startAutoPolling() {
+  if (pollTimer) clearInterval(pollTimer)
+  pollTimer = setInterval(pollNewArticles, POLL_INTERVAL)
+}
+
+async function pollNewArticles() {
+  if (document.hidden) return
+  try {
+    const res = await getLatestArticles({ since_id: lastMaxId.value, limit: 10 })
+    if (res.count > 0) {
+      const newItems = res.items
+      latestArticles.value = [...newItems, ...latestArticles.value].slice(0, 20)
+      newArticleCount.value += res.count
+      lastMaxId.value = res.max_id
+      notifyNewArticles(newItems)
+    }
+  } catch {
+    // 静默失败
+  }
+}
+
+function notifyNewArticles(items: LatestArticle[]) {
+  const top = items[0]
+  const kwList = top.keywords.map(k => k.word).join('、')
+  const title = `发现 ${items.length} 条新热点文章`
+  const body = `${top.title.slice(0, 40)}... | 命中：${kwList}`
+  // 浏览器桌面通知（需用户曾授权）
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/favicon.ico', tag: 'datagrab-hotspot' })
+  }
+  // 页面内通知（常驻不自动消失，需手动关闭，确保用户不遗漏）
+  ElNotification({
+    title, message: body, type: 'success', duration: 0, position: 'top-right',
+    showClose: true,
+  })
+}
+
+function onVisibilityChange() {
+  if (!document.hidden) pollNewArticles()
+}
 
 // ============ 加载 ============
 async function refreshSummary() {
@@ -426,25 +411,22 @@ async function refreshSummary() {
   try { summary.value = await getDashboardSummary(hours.value) } finally { loading.summary = false }
 }
 async function refreshCharts() {
-  loading.hourly = true; loading.top = true
+  loading.top = true
   try {
-    const [h, t] = await Promise.all([
-      getHourlyArticles(hours.value), getTopKeywords(hours.value, topLimit.value),
-    ])
-    hourly.value = h
+    const t = await getTopKeywords(hours.value, topLimit.value)
     topKeywords.value = t
-  } finally { loading.hourly = false; loading.top = false }
+  } finally { loading.top = false }
   await refreshSummary()
 }
 
 async function recalc() {
   recalcing.value = true
   try {
-    await recalcHistory({ start: '', end: '' })
+    await recalcHistory({} as RecalcRequest)
     ElMessage.success('重算完成')
     await refreshSummary()
     await refreshCharts()
-    await refreshEvents()
+    await loadLatestArticles()
   } catch { ElMessage.error('重算失败') } finally { recalcing.value = false }
 }
 
@@ -453,7 +435,7 @@ async function initialLoad() {
   await refreshSummary()
   if (!isEmpty.value) {
     await refreshCharts()
-    await refreshEvents()
+    await loadLatestArticles()
     // 默认加载 Top 5 关键词趋势（无需手动选择即可看到趋势）
     const top5 = summary.value.top_keywords.slice(0, 5).map(k => k.keyword_id)
     if (top5.length) {
@@ -461,11 +443,18 @@ async function initialLoad() {
     }
   }
 }
-onMounted(initialLoad)
+onMounted(() => {
+  initialLoad()
+  requestNotifyPermission()  // 静默请求桌面通知权限
+  startAutoPolling()         // 自动启动轮询，有新文章自动通知
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
 
 // ============ 工具 ============
-function levelTag(l: string): any { return ({ high: 'danger', mid: 'warning', low: 'info' } as any)[l] || '' }
-function levelText(l: string) { return ({ high: '高', mid: '中', low: '低' } as any)[l] || l }
 function formatTime(iso: string) {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return iso
@@ -554,21 +543,54 @@ function formatTime(iso: string) {
 .chart { width: 100%; }
 .chart-trend { height: 320px; min-height: 320px; }
 .chart-topkw { height: 320px; min-height: 320px; }
-.chart-hourly { height: 240px; min-height: 240px; }
 
-.kw-hit { color: var(--dg-cyan); font-family: 'JetBrains Mono', monospace; }
-.muted { color: var(--dg-text-muted); font-size: 12px; }
-.time-col { font-size: 12px; line-height: 1.5; }
-.num { color: var(--dg-text-bright); font-family: 'JetBrains Mono', monospace; }
-.ratio { font-family: 'JetBrains Mono', monospace; }
-.ratio.high { color: #F56C6C; }
-.ratio.mid { color: #E6A23C; }
-.ratio.low { color: #909399; }
-.pager { display: flex; justify-content: flex-end; padding: 12px 0 0; }
+/* 最新热点文章列表 */
+.article-list {
+  max-height: 480px; overflow-y: auto; padding-right: 4px;
+}
+.article-item {
+  display: flex; gap: 16px; padding: 14px 0;
+  border-bottom: 1px solid var(--dg-border);
+  transition: background .2s ease;
+}
+.article-item:hover { background: rgba(255,255,255,0.02); }
+.article-item:last-child { border-bottom: none; }
+.art-main { flex: 1; min-width: 0; }
+.art-title {
+  display: block; font-size: 14px; font-weight: 600; color: var(--dg-text-bright);
+  text-decoration: none; margin-bottom: 6px; line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.art-title:hover { color: var(--dg-cyan); }
+.art-meta {
+  display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--dg-text-muted);
+}
+.art-src { color: var(--dg-cyan); }
+.art-time { color: var(--dg-text-dim); }
+.art-score {
+  font-family: 'JetBrains Mono', monospace; font-weight: 700; padding: 1px 8px;
+  border-radius: 4px; font-size: 11px;
+}
+.score-high { background: rgba(82,196,26,0.15); color: #52C41A; }
+.score-mid { background: rgba(230,162,60,0.15); color: #E6A23C; }
+.score-low { background: rgba(245,108,108,0.12); color: #F56C6C; }
+.art-summary {
+  margin-top: 6px; font-size: 12px; color: var(--dg-text-muted); line-height: 1.5;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.art-kws {
+  display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; align-items: flex-end;
+}
+.kw-cnt { margin-left: 2px; opacity: 0.6; font-size: 10px; }
+.empty-articles {
+  padding: 40px; text-align: center; color: var(--dg-text-dim); font-size: 13px;
+}
 
 @media (max-width: 1100px) {
   .gauge-row { grid-template-columns: repeat(2, 1fr); }
   .bento-stats { grid-template-columns: repeat(2, 1fr); }
   .bento-grid { grid-template-columns: 1fr; }
+  .article-item { flex-direction: column; gap: 8px; }
+  .art-kws { flex-direction: row; align-items: flex-start; flex-wrap: wrap; }
 }
 </style>
